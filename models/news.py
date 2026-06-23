@@ -11,7 +11,7 @@ class Base(DeclarativeBase):
     '''
 
     # 创建时间字段 
-    create_at : Mapped[datetime] = mapped_column(
+    created_at : Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.now,
         comment="创建时间"
@@ -30,7 +30,7 @@ class Category(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="分类ID")
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, comment='分类名称')
-    sort_order: mapped_column[int] = mapped_column(Integer, default=0, nullable=False, comment='排序')
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment='排序')
 
     def __repr__(self):
         return f"<Category(id={self.id}, name={self.name}, sort_order={self.sort_order})>"
