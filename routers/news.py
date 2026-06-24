@@ -47,16 +47,18 @@ async def get_news(
 @router.get("/detail")
 async def get_news_datail(news_id: Annotated[int, Query(alias="id")], db: AsyncSession = Depends(get_db)):
 
-    # 获取新闻详情 + 浏览量+1 + 相关新闻
+    # 获取新闻详情
     news_detail = await news.get_news_detail(db, news_id)
-
     if not news_detail:
         raise HTTPException(status_code=404, detail="新闻不存在")
 
+    # 增加浏览量
     views_res = await news.increase_news_views(db, news_detail.id)
-
     if not views_res:
         raise HTTPException(status_code=404, detail="新闻不存在")
+
+    # 获取相关新闻
+    related_news = await news.get_related_news(db, news_detail.id, news_detail.category_id)
 
     return {
         "code": 200,
@@ -70,6 +72,6 @@ async def get_news_datail(news_id: Annotated[int, Query(alias="id")], db: AsyncS
             "publishTime": news_detail.publish_time,
             "categoryId": news_detail.category_id,
             "views": news_detail.views,
-            "relatedNews": [] 
+            "relatedNews": related_news
         }
     }

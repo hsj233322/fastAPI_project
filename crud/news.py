@@ -40,3 +40,24 @@ async def increase_news_views(db: AsyncSession, news_id: int) -> bool:
     await db.commit()
     
     return True
+
+async def get_related_news(db: AsyncSession, news_id: int, category_id: int, limit: int = 5):
+    stmt = select(News).where(
+        News.id != news_id,
+        News.category_id == category_id
+    ).order_by(
+        News.views.desc(),
+        News.publish_time.desc()
+    ).limit(limit)
+
+    result = await db.execute(stmt)
+    related_news = result.scalars().all()
+    return [{"id": news_detail.id,
+            "title": news_detail.title,
+            "content": news_detail.content,
+            "image": news_detail.image,
+            "author": news_detail.author,
+            "publishTime": news_detail.publish_time,
+            "categoryId": news_detail.category_id,
+            "views": news_detail.views
+        } for news_detail in related_news]
