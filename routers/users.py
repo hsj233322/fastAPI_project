@@ -5,11 +5,12 @@ from config.db_config import get_db
 from typing import Annotated
 from schemas.users import UserRequest
 from starlette import status
+from schemas.response import LoginResponse
 
 # 创建 APIRuter 实例
 router = APIRouter(prefix='/api/user',tags=["users"])
 
-@router.post("/register")
+@router.post("/register", response_model=LoginResponse)
 async def register(user_data: UserRequest, db: AsyncSession = Depends(get_db)):
 
     # 用户注册逻辑：验证用户是否存在 → 创建用户 → 生成Token → 相应结果
