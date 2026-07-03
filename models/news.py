@@ -1,41 +1,22 @@
-from typing import Optional
-from datetime import datetime
+# models/news.py
+from datetime import datetime, timezone
+
 from sqlalchemy import Integer, String, DateTime, Index, Text, ForeignKey
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
-# 定义基础模型类
-class Base(DeclarativeBase):
-    '''
-    所有数据库表的基表。
-    其他表（如新闻分类表，用户表）都会继承这个类，从而自动拥有创建时间和更新时间字段。
-    '''
+from models import Base, TimestampMixin
 
-    # 创建时间字段 
-    created_at : Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.now,
-        comment="创建时间"
-    )
-
-    # 更新时间字段
-    updated_at : Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.now,
-        onupdate=datetime.now,  # 每次更新数据时，自动把时间刷新为当前时间
-        comment="更新时间"
-    )
-
-class Category(Base):
+class Category(Base, TimestampMixin):
     __tablename__ = "news_category"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="分类ID")
-    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, comment='分类名称')
-    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment='排序')
+    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, comment="分类名称")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="排序")
 
     def __repr__(self):
         return f"<Category(id={self.id}, name={self.name}, sort_order={self.sort_order})>"
     
-class News(Base):
+class News(Base, TimestampMixin):
     __tablename__ = "news"
 
     # 创建索引
@@ -45,14 +26,18 @@ class News(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="新闻ID")
-    title: Mapped[str] = mapped_column(String(255), nullable=False, comment='新闻标题')
-    description: Mapped[Optional[str]] = mapped_column(String(500), comment='新闻描述')
-    content: Mapped[str] = mapped_column(Text, nullable=False, comment='新闻内容')
-    image: Mapped[Optional[str]] = mapped_column(String(255), comment='封面图片URL')
-    author: Mapped[Optional[str]] = mapped_column(String(50), comment='作者')
-    category_id: Mapped[int] = mapped_column(Integer, ForeignKey('news_category.id'), nullable=False, comment='分类ID')
-    views: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment='浏览量')
-    publish_time: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, comment='发布时间')
+    title: Mapped[str] = mapped_column(String(255), nullable=False, comment="新闻标题")
+    description: Mapped[str | None] = mapped_column(String(500), comment="新闻描述")
+    content: Mapped[str] = mapped_column(Text, nullable=False, comment="新闻内容")
+    image: Mapped[str | None] = mapped_column(String(255), comment="封面图片URL")
+    author: Mapped[str | None] = mapped_column(String(50), comment="作者")
+    category_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("news_category.id"), nullable=False, comment="分类ID"
+    )
+    views: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="浏览量")
+    publish_time: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), comment="发布时间"
+    )
 
     def __repr__(self):
-        return f"<News(id={self.id}, title={self.title}, cviews={self.views})>"
+        return f"<News(id={self.id}, title={self.title}, views={self.views})>"

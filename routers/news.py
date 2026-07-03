@@ -1,25 +1,24 @@
+# routers/news.py
 from fastapi import APIRouter, Depends, Query, HTTPException
 from crud import news
 from sqlalchemy.ext.asyncio import AsyncSession
 from config.db_config import get_db
 from typing import Annotated
+from schemas.news import ApiResponse, Category, PaginatedNews, NewsDetail, RelatedNews
+
 
 # 创建 APIRuter 实例
 router = APIRouter(prefix='/api/news',tags=["news"])
 # prefix 是公共的url前缀，会自动补全下面所有的路由方法中的url，不需要再重复写
 
-@router.get("/categories")  # 这里的url相当于/api/news/categories
+# 获取新闻分类
+@router.get("/categories", response_model=ApiResponse[list[Category]])
 async def get_categories(skip: int=0, limit: int=100, db: AsyncSession = Depends(get_db)):
-
     categories = await news.get_categories(db, skip, limit)
+    return ApiResponse(data=categories)    
 
-    return {
-        "code": 200,
-        "message": "success",
-        "data": categories
-    }
-
-@router.get("/list")
+# 获取新闻列表
+@router.get("/list",response_model=ApiResponse[PaginatedNews])
 async def get_news(
     category_id: Annotated[int, Query(alias="categoryId")],
     page: Annotated[int, Query(ge=1)] = 1,
@@ -29,23 +28,20 @@ async def get_news(
     # 先处理分页规则 → 查询新闻列表（数据库操作） → 计算总量（数据库操作） → 计算是否还有更多
     offset =  (page-1)* page_size
     news_list = await news.get_news_list(db, category_id, offset, page_size)
-    
     total = await news.get_news_count(db, category_id)
-
     has_more = (offset + len(news_list)) < total
     
-    return {
-        "code": 200,
-        "message": "获取新闻列表成功",
-        "data": {
-            "list": news_list,
+    return ApiResponse(
+        data={
+            "list": news_list,  # ORM对象
             "total": total,
             "hasMore": has_more
         }
-    }
+    )
 
-@router.get("/detail")
-async def get_news_datail(news_id: Annotated[int, Query(alias="id")], db: AsyncSession = Depends(get_db)):
+# 获取新闻详情
+@router.get("/detail", response_model=ApiResponse[NewsDetail])
+async def get_news_detail(news_id: Annotated[int, Query(alias="id")], db: AsyncSession = Depends(get_db)):
 
     # 获取新闻详情
     news_detail = await news.get_news_detail(db, news_id)
@@ -53,25 +49,16 @@ async def get_news_datail(news_id: Annotated[int, Query(alias="id")], db: AsyncS
         raise HTTPException(status_code=404, detail="新闻不存在")
 
     # 增加浏览量
-    views_res = await news.increase_news_views(db, news_detail.id)
-    if not views_res:
+    success = await news.increase_news_views(db, news_detail.id)
+    if not success:
         raise HTTPException(status_code=404, detail="新闻不存在")
 
     # 获取相关新闻
-    related_news = await news.get_related_news(db, news_detail.id, news_detail.category_id)
+    related = await news.get_related_news(db, news_detail.id, news_detail.category_id)
 
-    return {
-        "code": 200,
-        "message": "success",
-        "data":{
-            "id": news_detail.id,
-            "title": news_detail.title,
-            "content": news_detail.content,
-            "image": news_detail.image,
-            "author": news_detail.author,
-            "publishTime": news_detail.publish_time,
-            "categoryId": news_detail.category_id,
-            "views": news_detail.views,
-            "relatedNews": related_news
-        }
-    }
+    news_detail_model = NewsDetail.model_validate(news_detail) 
+    news_detail_model.related_news = [
+        RelatedNews.model_validate(item) for item in related
+    ]
+
+    return ApiResponse(data=news_detail_model)

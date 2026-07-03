@@ -1,8 +1,6 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from routers import news, users
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.exceptions import HTTPException
-from starlette.requests import Request
 from fastapi.responses import JSONResponse
 from loguru import logger
 
@@ -37,7 +35,7 @@ app.include_router(users.router)
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request:Request, exc:HTTPException):
     """
-    只要代码里 raise HTTPException，就会被这个函数拦截
+    只要代码里 raise HTTPException就会被这个函数拦截
     """
     # 把 FastAPI 默认的 detail, 转换成项目统一的 message
     return JSONResponse(
@@ -50,7 +48,7 @@ async def http_exception_handler(request:Request, exc:HTTPException):
     )
 
 logger.add(
-   "logs/error.log", level="ERROR",
+   "logs/server_error_{time:YYYY-MM-DD}.log",
     enqueue=True
 )
 # 全局未知异常处理器
