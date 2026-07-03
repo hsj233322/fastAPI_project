@@ -11,6 +11,33 @@ class ApiResponse(BaseModel, Generic[T]):
     message: str = "success"
     data: T | None = None
 
+# 分类标签
+class Category(BaseModel):
+    id: int
+    name: str
+    sort_order: int
+
+    model_config = {"from_attributes": True}
+
+# 列表页每条新闻展示的内容
+class NewsListItem(BaseModel):
+    id: int
+    title: str
+    image: str
+    author: str
+    publish_time: datetime
+    category_id: int
+    views: int
+    model_config = {"from_attributes": True}
+
+# 分类列表
+class NewsList(BaseModel):
+    list: list[NewsListItem]
+    total: int
+    has_more: bool
+    
+    model_config = {"from_attributes": True}
+
 # 详情页下的相关新闻
 class RelatedNews(BaseModel):
     id: int
@@ -34,35 +61,8 @@ class NewsDetail(BaseModel):
 
     model_config = {"from_attributes": True}
 
-# 列表页每条新闻展示的内容
-class NewsListItem(BaseModel):
-    id: int
-    title: str
-    image: str
-    author: str
-    publish_time: datetime
-    category_id: int
-    views: int
-    model_config = {"from_attributes": True}
-
 # 分页模型
 class PaginatedNews(BaseModel):
     list: list[NewsListItem]
     total: int
     has_more: bool
-
-# 分类列表
-class NewsList(BaseModel):
-    list: list[NewsListItem]
-    total: int
-    has_more: bool
-    
-    model_config = {"from_attributes": True}
-
-# 分类标签
-class Category(BaseModel):
-    id: int
-    name: str
-    sort_order: int
-
-    model_config = {"from_attributes": True}

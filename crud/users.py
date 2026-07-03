@@ -16,7 +16,6 @@ async def get_user_by_username(db: AsyncSession, username: str):
     result = await db.execute(query)
     return result.scalar_one_or_none()
 
-
 async def create_user(db: AsyncSession, user_data: UserRequest):
     """创建新用户"""
     hashed_password = security.get_hash_password(user_data.password)
@@ -51,6 +50,6 @@ async def create_token(db: AsyncSession, user_id: int):
         )
         db.add(user_token)
 
-    await db.commit()       # 无论走哪个分支，都统一 commit 一次
+    await db.commit() 
     await db.refresh(user_token)
     return token
