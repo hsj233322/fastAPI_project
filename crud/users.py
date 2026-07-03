@@ -6,8 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.users import User, UserToken
-from schemas.users import UserRequest
+from schemas.users import UserRequest, UserInfo, UserUpdataRequest
 from utils import security
+
+
 
 
 async def get_user_by_username(db: AsyncSession, username: str):
@@ -53,3 +55,20 @@ async def create_token(db: AsyncSession, user_id: int):
     await db.commit() 
     await db.refresh(user_token)
     return token
+
+
+async def update_user(
+        db: AsyncSession,
+        user: User, # 工具函数 auth 查出来的 ORM 对象
+        update_data: UserUpdataRequest,   # 前端传来的部分数据
+):
+    # 更新用户信息
+    update_dict = update_data.model_dump(exclude_unset=True)    # 只获取前端实际传过来的字段，转成字典
+
+    # 遍历字典，动态覆盖 ORM 对象的属性
+    for key, value in update_dict.items():
+        setattr(user, key, value)   # 等同于 user.key = value   user.bio = "新简介"
+
+    await db.commit()       # 提交更改到数据库
+    await db.refresh(user)  # 刷新对象，确保数据是最新的
+    return user

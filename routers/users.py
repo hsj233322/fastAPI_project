@@ -5,9 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.db_config import get_db
 from schemas.users import UserRequest
 from utils.security import verify_password
-from schemas.users import LoginData, UserInfo
+from schemas.users import LoginData, UserInfo, UserUpdataRequest
 from schemas.news import ApiResponse
-
+from models.users import User
+from utils.auth import get_current_user
 
 # 创建 APIRuter 实例
 router = APIRouter(prefix='/api/user',tags=["users"])
@@ -41,3 +42,22 @@ async def login(user_data: UserRequest, db: AsyncSession = Depends(get_db)):
     login_data = LoginData(token=token, user_info=user_info)
 
     return ApiResponse(data=login_data)
+
+# 获取个人中心
+@router.get("/profile", response_model=ApiResponse[UserInfo])
+async def get_profile(
+    current_user: User = Depends(get_current_user)
+):
+    user_info = UserInfo.model_validate(current_user)
+    return ApiResponse(data=user_info)
+
+# 修改个人资料
+@router.patch("/profile", response_model=ApiResponse[UserInfo])
+async def update_profile(
+    user_data: UserUpdataRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    updated_user = await users.update_user(db, current_user, user_data)
+
+    return ApiResponse(data=UserInfo.model_validate(updated_user))

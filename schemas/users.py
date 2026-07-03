@@ -27,3 +27,9 @@ class LoginData(BaseSchema):
     user_info: UserInfo
 
 # 登陆接口的返回值类型就是： ApiResponse[LoginData]
+
+
+# 部分更新数据
+class UserUpdataRequest(BaseSchema):
+    bio: str | None = None
+    avatar: str | None = None
