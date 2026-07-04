@@ -12,7 +12,7 @@ class ApiResponse(BaseModel, Generic[T]):
     data: T | None = None
 
 # 分类标签
-class Category(BaseModel):
+class CategoryRequest(BaseModel):
     id: int
     name: str
     sort_order: int
@@ -20,7 +20,7 @@ class Category(BaseModel):
     model_config = {"from_attributes": True}
 
 # 列表页每条新闻展示的内容
-class NewsListItem(BaseModel):
+class NewsListItemRequest(BaseModel):
     id: int
     title: str
     image: str
@@ -30,9 +30,9 @@ class NewsListItem(BaseModel):
     views: int
     model_config = {"from_attributes": True}
 
-# 分类列表
-class NewsList(BaseModel):
-    list: list[NewsListItem]
+# 分页模型
+class PaginatedNews(BaseModel):
+    list: list[NewsListItemRequest]
     total: int
     has_more: bool
     
@@ -60,9 +60,3 @@ class NewsDetail(BaseModel):
     related_news: list[RelatedNews] = []
 
     model_config = {"from_attributes": True}
-
-# 分页模型
-class PaginatedNews(BaseModel):
-    list: list[NewsListItem]
-    total: int
-    has_more: bool

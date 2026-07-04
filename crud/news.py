@@ -3,6 +3,7 @@ from sqlalchemy import select
 from models.news import Category, News
 from sqlalchemy import func, update
 
+"""获取新闻列表"""
 async def get_categories(db: AsyncSession, skip: int=0, limit: int=100):
     stmt = select(Category).offset(skip).limit(limit)
     result = await db.execute(stmt)
@@ -21,27 +22,19 @@ async def get_news_count(db: AsyncSession, category_id: int):
     return result.scalar_one()  # 只能有一个结果，否则报错
 
 async def get_news_detail(db: AsyncSession, news_id: int) -> News | None:
+    # 获取新闻详情
     stmt = select(News).where(News.id == news_id)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
-async def increase_news_views(db: AsyncSession, news_id: int) -> bool:
-    # 查出这条新闻
-    stmt = select(News).where(News.id == news_id)
-    result = await db.execute(stmt)
-    news_item = result.scalar_one_or_none()
-    
-    # 判空
-    if not news_item:
-        return False # 新闻不存在，更新失败
-        
-    # 直接给对象的属性 +1，SQLAlchemy 会在 commit 时自动生成 UPDATE 语句
+async def increase_news_views(db: AsyncSession, news_item: News) -> bool:
+    """增加新闻浏览次数"""
     news_item.views += 1
     await db.commit()
-    
     return True
 
 async def get_related_news(db: AsyncSession, news_id: int, category_id: int, limit: int = 5):
+    # 获取新闻的关联新闻
     stmt = select(News).where(
         News.id != news_id,
         News.category_id == category_id
