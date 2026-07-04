@@ -1,10 +1,28 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
-from routers import news, users
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
 
-app = FastAPI()
+# 路由
+from routers import news, users, collects
+
+# 数据库相关
+from models import Base 
+from models.collects import Collect     # 注册模型，触发建表
+from config.db_config import async_engine, get_db 
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时：自动建表
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    # 关闭时：释放连接池
+    await async_engine.dispose()
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,6 +30,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"], # 允许所有请求方法 (GET, POST 等)
     allow_headers=["*"], # 允许所有请求头
+
 )
 
 @app.get("/")
@@ -21,6 +40,7 @@ async def root():
 # 挂载路由
 app.include_router(news.router)
 app.include_router(users.router)
+app.include_router(collects.router)
 
 
 
@@ -29,7 +49,6 @@ app.include_router(users.router)
 # rotation="00:00" 表示每天午夜自动生成一个新文件
 # retention="10 days" 表示只保留最近 10 天的日志，自动删除老日志
 # enqueue=True 表示异步写入，高并发下不会阻塞接口响应
-
 
 # 全局 HTTP 异常处理器
 @app.exception_handler(HTTPException)

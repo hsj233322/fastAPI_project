@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Integer, String, DateTime, Index, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column
 from models import Base, TimestampMixin
-
+from sqlalchemy.dialects.mysql import INTEGER
 
 class User(Base, TimestampMixin):
     """
@@ -17,7 +17,7 @@ class User(Base, TimestampMixin):
         Index('phone_UNIQUE', 'phone'),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="用户ID")
+    id: Mapped[int] = mapped_column(INTEGER(unsigned=True), primary_key=True, autoincrement=True, comment="用户ID")
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, comment="用户名")
     password: Mapped[str] = mapped_column(String(255), nullable=False, comment="密码")
     nickname: Mapped[str | None] = mapped_column(String(50), comment="昵称")

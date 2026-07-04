@@ -1,5 +1,5 @@
 # routers/news.py
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from crud import news
 from sqlalchemy.ext.asyncio import AsyncSession
 from config.db_config import get_db
@@ -55,7 +55,7 @@ async def get_news_detail(news_id: Annotated[int, Query(alias="id")], db: AsyncS
     # 获取新闻详情
     news_detail = await news.get_news_detail(db, news_id)
     if not news_detail:
-        raise HTTPException(status_code=404, detail="新闻不存在")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新闻不存在")
 
     # 增加浏览量
     await news.increase_news_views(db, news_detail)

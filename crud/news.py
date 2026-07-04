@@ -3,8 +3,9 @@ from sqlalchemy import select
 from models.news import Category, News
 from sqlalchemy import func, update
 
-"""获取新闻列表"""
+
 async def get_categories(db: AsyncSession, skip: int=0, limit: int=100):
+    # 查询所有分类
     stmt = select(Category).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
