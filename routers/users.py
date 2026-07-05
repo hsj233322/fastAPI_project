@@ -6,12 +6,12 @@ from config.db_config import get_db
 from schemas.users import UserRegisterRequest
 from utils.security import verify_password
 from schemas.users import LoginData, UserInfo, UserUpdateRequest, UserLoginRequest, ChangePasswordRequest
-from schemas.news import ApiResponse
+from schemas import ApiResponse
 from models.users import User
 from utils.auth import get_current_user
 
 # 创建 APIRuter 实例
-router = APIRouter(prefix='/api/user',tags=["users"])
+router = APIRouter(prefix='/api/user',tags=["个人中心"])
 
 """用户注册"""
 @router.post("/register", response_model=ApiResponse)

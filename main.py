@@ -5,11 +5,12 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 # 路由
-from routers import news, users, collects
+from routers import news, users, collects, historys
 
 # 数据库相关
 from models import Base 
 from models.collects import Collect     # 注册模型，触发建表
+from models.historys import ViewHistory
 from config.db_config import async_engine, get_db 
 
 
@@ -41,6 +42,7 @@ async def root():
 app.include_router(news.router)
 app.include_router(users.router)
 app.include_router(collects.router)
+app.include_router(historys.router)
 
 
 

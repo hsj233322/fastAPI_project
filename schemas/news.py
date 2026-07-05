@@ -1,26 +1,18 @@
 # schemas/news.py
 from pydantic import BaseModel
-from typing import Generic, TypeVar
 from datetime import datetime
+from schemas import BaseSchema
 
-T = TypeVar("T")
-
-# 通用的 API 响应模型
-class ApiResponse(BaseModel, Generic[T]):
-    code: int = 200
-    message: str = "success"
-    data: T | None = None
-
-# 分类标签
-class CategoryRequest(BaseModel):
+# ==================== 新闻分类 ====================
+class CategoryResponse(BaseSchema):
+    """分类响应模型"""
     id: int
     name: str
     sort_order: int
 
-    model_config = {"from_attributes": True}
-
-# 列表页每条新闻展示的内容
-class NewsListItemRequest(BaseModel):
+# ==================== 新闻列表 ====================
+class NewsListItemResponse(BaseSchema):
+    """新闻列表中的每一项响应模型"""
     id: int
     title: str
     image: str
@@ -28,27 +20,23 @@ class NewsListItemRequest(BaseModel):
     publish_time: datetime
     category_id: int
     views: int
-    model_config = {"from_attributes": True}
 
-# 分页模型
-class PaginatedNews(BaseModel):
-    list: list[NewsListItemRequest]
+class PaginatedNewsResponse(BaseSchema):
+    """分页响应"""
+    item: list[NewsListItemResponse]
     total: int
     has_more: bool
-    
-    model_config = {"from_attributes": True}
 
-# 详情页下的相关新闻
-class RelatedNews(BaseModel):
+# ==================== 新闻详情 ====================
+class RelatedNewsResponse(BaseSchema):
+    """相关新闻"""
     id: int
     title: str
     publish_time: datetime
     views: int
 
-    model_config = {"from_attributes": True}
-
-# 新闻详情
-class NewsDetail(BaseModel):
+class NewsDetailResponse(BaseSchema):
+    """新闻详情响应模型"""
     id: int
     title: str
     content: str
@@ -57,6 +45,4 @@ class NewsDetail(BaseModel):
     publish_time: datetime
     category_id: int
     views: int
-    related_news: list[RelatedNews] = []
-
-    model_config = {"from_attributes": True}
+    related_news: list[RelatedNewsResponse] = []    # 相关新闻

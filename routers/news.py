@@ -4,21 +4,21 @@ from crud import news
 from sqlalchemy.ext.asyncio import AsyncSession
 from config.db_config import get_db
 from typing import Annotated
-from schemas.news import ApiResponse, CategoryRequest, PaginatedNews, NewsDetail, RelatedNews, NewsListItemRequest
+from schemas import ApiResponse
+from schemas.news import CategoryResponse, PaginatedNewsResponse, NewsListItemResponse, NewsDetailResponse, RelatedNewsResponse
 
 
 # 创建 APIRuter 实例
-router = APIRouter(prefix='/api/news',tags=["news"])
-# prefix 是公共的url前缀，会自动补全下面所有的路由方法中的url，不需要再重复写
+router = APIRouter(prefix='/api/news',tags=["首页"])
 
 # 获取新闻分类
-@router.get("/categories", response_model=ApiResponse[list[CategoryRequest]])
+@router.get("/categories", response_model=ApiResponse[list[CategoryResponse]])
 async def get_categories(skip: int=0, limit: int=100, db: AsyncSession = Depends(get_db)):
     categories = await news.get_categories(db, skip, limit)
     return ApiResponse(data=categories)    
 
 # 获取新闻列表
-@router.get("/list",response_model=ApiResponse[PaginatedNews])
+@router.get("/list",response_model=ApiResponse[PaginatedNewsResponse])
 async def get_news(
     category_id: Annotated[int, Query(alias="categoryId")],
     page: Annotated[int, Query(ge=1)] = 1,
@@ -37,11 +37,11 @@ async def get_news(
     # 判断是否有更多
     has_more = (offset + len(news_list)) < total
     
-    news_items = [NewsListItemRequest.model_validate(item) for item in news_list]
+    news_items = [NewsListItemResponse.model_validate(item) for item in news_list]
 
-    #  构造 PaginatedNews 对象
-    paginated = PaginatedNews(
-        list=news_items,
+    # 构造 PaginatedNews 对象
+    paginated = PaginatedNewsResponse(
+        item=news_items,
         total=total,
         has_more=has_more
     )
@@ -49,7 +49,7 @@ async def get_news(
     return ApiResponse(data=paginated)
 
 # 获取新闻详情
-@router.get("/detail", response_model=ApiResponse[NewsDetail])
+@router.get("/detail", response_model=ApiResponse[NewsDetailResponse])
 async def get_news_detail(news_id: Annotated[int, Query(alias="id")], db: AsyncSession = Depends(get_db)):
 
     # 获取新闻详情
@@ -63,9 +63,9 @@ async def get_news_detail(news_id: Annotated[int, Query(alias="id")], db: AsyncS
     # 获取相关新闻
     related = await news.get_related_news(db, news_detail.id, news_detail.category_id)
 
-    news_detail_model = NewsDetail.model_validate(news_detail) 
+    news_detail_model = NewsDetailResponse.model_validate(news_detail) 
     news_detail_model.related_news = [
-        RelatedNews.model_validate(item) for item in related
+        RelatedNewsResponse.model_validate(item) for item in related
     ]
 
     return ApiResponse(data=news_detail_model)

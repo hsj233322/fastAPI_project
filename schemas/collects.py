@@ -1,12 +1,9 @@
 # schemas/collects.py
-from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+from schemas import BaseSchema
 
-class BaseSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-# 收藏列表里，单条新闻的响应模型
 class CollectNewsInfo(BaseSchema):
+    """收藏列表里，单条新闻的响应模型"""
     id: int              # 新闻 ID
     title: str           # 新闻标题
     category_name: str   # 所属分类名

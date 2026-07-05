@@ -1,5 +1,5 @@
 # models/collects.py
-from sqlalchemy import Integer, ForeignKey
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from models import Base, TimestampMixin
 from models.users import User
