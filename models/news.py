@@ -13,8 +13,6 @@ class Category(Base, TimestampMixin):
     category_name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, comment="分类名称")
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="排序")
 
-    def __repr__(self):
-        return f"<Category(id={self.id}, name={self.category_name}, sort_order={self.sort_order})>"
     
 class News(Base, TimestampMixin):
     __tablename__ = "news"
@@ -38,6 +36,3 @@ class News(Base, TimestampMixin):
     publish_time: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc), comment="发布时间"
     )
-
-    def __repr__(self):
-        return f"<News(id={self.id}, title={self.title}, views={self.views})>"

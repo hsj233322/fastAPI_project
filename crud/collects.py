@@ -1,9 +1,10 @@
 # crud/collects.py
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.news import News, Category
 from models.collects import Collect
 from fastapi import HTTPException, status
+
 
 async def get_user_collects(db: AsyncSession, user_id: int):
     """获取某用户的所有收藏新闻"""
@@ -52,3 +53,13 @@ async def toggle_collect_news(db: AsyncSession, user_id: int, news_id: int) -> b
         db.add(new_collect)
         await db.commit()
         return True # 返回 True 代表现在是已收藏状态
+    
+async def de_collect_all(db: AsyncSession, user_id: int):
+    """删除用户的所有收藏"""
+    stmt = delete(Collect).where(Collect.user_id == user_id)
+    result = await db.execute(stmt)
+    await db.commit()
+    
+    # 获取删除了多少条，用于返回给前端
+    deleted_count = result.rowcount   # type: ignore
+    print(f"成功删除了 {deleted_count} 条收藏")

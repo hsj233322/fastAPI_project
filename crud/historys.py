@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.historys import ViewHistory
 from models.news import News, Category
 from datetime import datetime, timezone
+from fastapi import HTTPException, status
+from sqlalchemy import delete
 
 async def add_view_history(db: AsyncSession, user_id: int, news_id: int):
     """记录浏览历史（存在则更新时间，不存在则插入）"""
@@ -25,12 +27,11 @@ async def add_view_history(db: AsyncSession, user_id: int, news_id: int):
         
     await db.commit()
 
-
 async def get_user_history(db: AsyncSession, user_id: int, limit: int = 20):
     """获取用户的浏览历史列表"""
     query = (
         select(
-            News.id,
+            ViewHistory.id,
             News.title,
             News.image,
             Category.category_name,
@@ -45,3 +46,17 @@ async def get_user_history(db: AsyncSession, user_id: int, limit: int = 20):
     
     result = await db.execute(query)
     return result.all()
+
+async def delete_one_history(db: AsyncSession, record_id: int, user_id: int):
+    """删除单条浏览历史"""
+    stmt = await db.get(ViewHistory, record_id)
+    if not stmt or stmt.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="记录不存在或无权限")
+    await db.delete(stmt)
+    await db.commit()
+
+async def delete_all_history(db: AsyncSession, user_id: int):
+    """删除用户所有浏览历史"""
+    stmt = delete(ViewHistory).where(ViewHistory.user_id == user_id)
+    await db.execute(stmt)
+    await db.commit()

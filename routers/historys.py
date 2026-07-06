@@ -12,7 +12,7 @@ from fastapi.exceptions import HTTPException
 
 router = APIRouter(prefix="/api/history", tags=["浏览历史"])
 
-""" 记录浏览历史"""
+""" 记录浏览历史 """
 @router.post("/record/{news_id}", response_model=ApiResponse)
 async def record_history(
     news_id: int,
@@ -25,7 +25,7 @@ async def record_history(
     await historys.add_view_history(db, user.id, news_id)
     return ApiResponse(code=200, message="记录成功")
 
-""" 获取我的浏览历史列表"""
+""" 获取我的浏览历史列表 """
 @router.get("/list", response_model=ApiResponse[list[HistoryItemResponse]])
 async def get_my_history(
     db: AsyncSession = Depends(get_db),
@@ -34,3 +34,22 @@ async def get_my_history(
     history_list = await historys.get_user_history(db, user.id)
     history_item = [HistoryItemResponse.model_validate(item) for item in history_list]
     return ApiResponse(data=history_item)
+
+""" 删除单条浏览历史 """
+@router.delete("/{record_id}", response_model=ApiResponse)
+async def delete_one_history(
+    record_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    await historys.delete_one_history(db, record_id, user.id)
+    return ApiResponse(code=200, message="删除成功")
+
+""" 删除我的浏览历史列表 """
+@router.delete("/", response_model=ApiResponse)
+async def delete_all_history(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    await historys.delete_all_history(db, user.id)
+    return ApiResponse(code=200, message="删除成功")

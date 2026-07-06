@@ -79,6 +79,9 @@ async def update_password(
 ):
     """更新用户密码"""
     
+    if update_data.new_password == update_data.old_password:
+        raise HTTPException(status_code=400, detail="新密码不能与旧密码相同")
+
     # 验证旧密码是否正确
     if not verify_password(update_data.old_password, user.password):
         raise HTTPException(

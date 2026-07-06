@@ -7,7 +7,7 @@ from schemas import BaseSchema
 class CategoryResponse(BaseSchema):
     """分类响应模型"""
     id: int
-    name: str
+    category_name: str
     sort_order: int
 
 # ==================== 新闻列表 ====================
