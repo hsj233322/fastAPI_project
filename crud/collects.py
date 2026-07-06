@@ -10,7 +10,7 @@ async def get_user_collects(db: AsyncSession, user_id: int):
     """获取某用户的所有收藏新闻"""
     query = (
         select(
-            News.id, 
+            News.id.label("news_id"), 
             News.title, 
             News.image,
             Category.category_name,
