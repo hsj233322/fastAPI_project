@@ -3,25 +3,36 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
+from config.redis_config import redis_pool
 
 # 路由
 from routers import news, users, collects, historys
 
 # 数据库相关
 from models import Base 
-from models.collects import Collect     # 注册模型，触发建表
-from models.historys import ViewHistory
 from config.db_config import async_engine, get_db 
+"""注册模型，触发建表"""
+from models.collects import Collect     
+from models.historys import ViewHistory
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动时：自动建表
+    # --- 启动阶段 ---
+    # 1. 初始化数据库表
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    yield
-    # 关闭时：释放连接池
+    
+    # 2. 检查 Redis（from_url 是懒加载的，已经准备好了，所以这里无需操作）
+    print("Redis 连接池已就绪")
+    
+    yield  # 应用运行期间
+    
+    # --- 关闭阶段 ---
+    # 注意：关闭顺序通常和启动相反
+    await redis_pool.aclose()
     await async_engine.dispose()
+    print("所有连接池已释放")
 
 app = FastAPI(lifespan=lifespan)
 
@@ -31,7 +42,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"], # 允许所有请求方法 (GET, POST 等)
     allow_headers=["*"], # 允许所有请求头
-
 )
 
 @app.get("/")
