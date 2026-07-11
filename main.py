@@ -3,7 +3,10 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
 from config.redis_config import redis_pool
+from dependencies import start_background_tasks, stop_background_tasks 
 
 # 路由
 from routers import news, users, collects, historys
@@ -11,10 +14,25 @@ from routers import news, users, collects, historys
 # 数据库相关
 from models import Base 
 from config.db_config import async_engine, get_db 
+
 """注册模型，触发建表"""
 from models.collects import Collect     
 from models.historys import ViewHistory
 
+# main.py
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+# 导入封装好的启停函数
+from dependencies import start_background_tasks, stop_background_tasks 
+
+import logging
+
+# 统一设置全局日志级别为 INFO，确保所有模块的 logger.info 都能正常输出
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-7s | %(name)s | %(message)s",
+    datefmt="%H:%M:%S"
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,25 +41,36 @@ async def lifespan(app: FastAPI):
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
-    # 2. 检查 Redis（from_url 是懒加载的，已经准备好了，所以这里无需操作）
-    print("Redis 连接池已就绪")
+    # 2. 启动后台任务
+    # 3. 传入 async_session_factory
+    await start_background_tasks(async_session_factory)
+    
+    print("Application startup complete")
     
     yield  # 应用运行期间
     
     # --- 关闭阶段 ---
-    # 注意：关闭顺序通常和启动相反
-    await redis_pool.aclose()
-    await async_engine.dispose()
-    print("所有连接池已释放")
+    # 核心原则：先停业务任务（触发最后一次刷库），再关底层连接池
+    await stop_background_tasks()       # 1. 停止刷库任务并刷入剩余数据
+    await redis_pool.aclose()           # 2. 关闭 Redis 连接池
+    await async_engine.dispose()        # 3. 释放数据库引擎
+    print("All resources released")
+
+
+# 4. 在创建 app 之前定义 session_factory
+async_session_factory = async_sessionmaker(
+    async_engine, 
+    expire_on_commit=False
+)
 
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:8080"], # 允许前端的地址
+    allow_origins=["http://localhost:5173", "http://localhost:8080"],
     allow_credentials=True,
-    allow_methods=["*"], # 允许所有请求方法 (GET, POST 等)
-    allow_headers=["*"], # 允许所有请求头
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/")
@@ -55,43 +84,30 @@ app.include_router(collects.router)
 app.include_router(historys.router)
 
 
-
 """--------异常处理--------"""
-# 配置 loguru 自动生成日志文件
-# rotation="00:00" 表示每天午夜自动生成一个新文件
-# retention="10 days" 表示只保留最近 10 天的日志，自动删除老日志
-# enqueue=True 表示异步写入，高并发下不会阻塞接口响应
+logger.add(
+   "logs/server_error_{time:YYYY-MM-DD}.log",
+   rotation="00:00",
+   retention="10 days",
+   enqueue=True
+)
 
 # 全局 HTTP 异常处理器
 @app.exception_handler(HTTPException)
-async def http_exception_handler(request:Request, exc:HTTPException):
-    """
-    只要代码里 raise HTTPException就会被这个函数拦截
-    """
-    # 把 FastAPI 默认的 detail, 转换成项目统一的 message
+async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "code": exc.status_code,    # 使用 HTTP 状态码作为业务 code
-            "message": exc.detail,      # 使用 HTTP 状态码的 detail 作为 message    
-            "data": None                # 发生错误时，data 默认为 None
+            "code": exc.status_code,
+            "message": exc.detail,    
+            "data": None               
         }
     )
 
-logger.add(
-   "logs/server_error_{time:YYYY-MM-DD}.log",
-    enqueue=True
-)
 # 全局未知异常处理器
 @app.exception_handler(Exception)
-async def global_exception_handler(request:Request, exc:Exception):
-    """
-    只要代码发生了没被捕获的崩溃就会被这里拦截
-    """
-    # logger.exception 会自动把详细的报错堆栈全部写进日志文件
+async def global_exception_handler(request: Request, exc: Exception):
     logger.exception(f"服务器内部崩溃: {exc}")
-
-    # 给前端返回一个统一的错误提示
     return JSONResponse(
         status_code=500,
         content={

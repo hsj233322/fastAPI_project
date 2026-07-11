@@ -6,10 +6,10 @@ from config.db_config import get_db
 from typing import Annotated
 from schemas import ApiResponse
 from schemas.news import CategoryResponse, PaginatedNewsResponse, NewsListItemResponse, NewsDetailResponse, RelatedNewsResponse
-from config.cache_service import CacheService
+from services.cache_service import CacheService
 from dependencies import get_cache
-import json
-
+from services.view_counter_service import ViewCounterService
+from dependencies import get_view_counter
 
 # 创建 APIRuter 实例
 router = APIRouter(prefix='/api/news',tags=["新闻模块"])
@@ -28,7 +28,6 @@ async def get_categories(
         print("命中redis缓存")
         return ApiResponse(data=categories)
 
-    
     # 缓存中没有，则从数据库中获取
     print("未命中redis缓存, 查询数据库")
     categories_orm = await news.get_categories(db)
@@ -74,20 +73,23 @@ async def get_news(
 
 # 获取新闻详情
 @router.get("/detail", response_model=ApiResponse[NewsDetailResponse])
-async def get_news_detail(news_id: Annotated[int, Query(alias="id")], db: AsyncSession = Depends(get_db)):
-
-    # 获取新闻详情
+async def get_news_detail(
+    news_id: Annotated[int, Query(alias="id")], 
+    db: AsyncSession = Depends(get_db),
+    view_counter: ViewCounterService = Depends(get_view_counter)
+):
     news_detail = await news.get_news_detail(db, news_id)
     if not news_detail:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新闻不存在")
 
-    # 增加浏览量
-    await news.increase_news_views(db, news_detail)
+    await view_counter.record_view(news_detail.id)
 
-    # 获取相关新闻
+    pending = await view_counter.get_pending_views(news_detail.id)
+    
+    news_detail_model = NewsDetailResponse.model_validate(news_detail)
+    news_detail_model.views = news_detail.views + pending
+
     related = await news.get_related_news(db, news_detail.id, news_detail.category_id)
-
-    news_detail_model = NewsDetailResponse.model_validate(news_detail) 
     news_detail_model.related_news = [
         RelatedNewsResponse.model_validate(item) for item in related
     ]
