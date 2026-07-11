@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # 1. 你的 FastAPI 应用
+  app:
+    build: .
+    container_name: my_fastapi_app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env  # ⭐ 确保你有个 .env 文件，里面配置数据库和 Redis 的连接信息
+    volumes:
+      - .:/app  # ⭐ 代码挂载：方便你改代码后直接重启，不用每次都重新 build
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload # 开启热重载
+
+  # 2. Redis 缓存服务
+  redis:
+    image: redis:alpine
+    container_name: my_redis
+    ports:
+      - "6379:6379"
+
+  # 3. MySQL 数据库服务
+  db:
+    image: mysql:8.0
+    container_name: my_mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_123  # root 用户的密码
+      MYSQL_DATABASE: news_app                # ⭐ 自动创建 news_app 数据库
+      MYSQL_USER: myuser                      # ⭐ 自动创建 myuser 用户
+      MYSQL_PASSWORD: 123456                  # ⭐ myuser 的密码设为 123456
+    volumes:
+      - mysql_data:/var/lib/mysql     
+
+volumes:
+  mysql_data:

@@ -1,15 +1,16 @@
 # config/redis_config.py
 import redis.asyncio as aioredis
 from typing import AsyncGenerator
+import os
 
-# Redis 连接 URL (如果是本地默认配置，就是这个。如果有密码则格式为: redis://:password@localhost:6379/0)
-REDIS_URL = "redis://localhost:6379/0"
+# Redis 连接 URL (优先读取环境变量，如果没有则使用默认的本地 localhost)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # 创建全局异步连接池
 redis_pool = aioredis.ConnectionPool.from_url(
     REDIS_URL, 
-    decode_responses=True,  # 自动把字节解码为字符串
-    max_connections=100       # 最大连接数
+    decode_responses=True,  
+    max_connections=100       
 )
 
 # 获取 Redis 客户端实例
