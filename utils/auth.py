@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timezone
-
+from typing import Annotated
 from config.db_config import get_db
 from models.users import User, UserToken
 
@@ -12,8 +12,9 @@ from models.users import User, UserToken
 security_bearer = HTTPBearer()
 
 async def get_current_user(
-        credentials: HTTPAuthorizationCredentials = Depends(security_bearer),
-        db: AsyncSession = Depends(get_db)
+        db: Annotated[AsyncSession, Depends(get_db)], 
+        credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bearer)],
+        
 ):
     """只要路由 Depends 了这个函数，就必须带 Token，否则直接返回 401。"""
     token = credentials.credentials

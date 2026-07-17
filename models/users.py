@@ -10,10 +10,10 @@ class User(Base, TimestampMixin):
     """
     用户信息表ORM模型
     """
-    __tablename__ = "user"
+    __tablename__ : str = "user"
 
     # 创建索引
-    __table_args__ = (
+    __table_args__ : tuple[Index, ...] = (  
         Index('phone_UNIQUE', 'phone'),
     )
 
@@ -27,17 +27,15 @@ class User(Base, TimestampMixin):
     )
     bio: Mapped[str | None] = mapped_column(String(500), comment="简介", default="这个人很懒，什么都没有留下")
     phone: Mapped[str | None] = mapped_column(String(20), comment="手机号")
-    def __repr__(self) -> str:
-        return f"<User(id={self.id}, username={self.username}, nickname={self.nickname})>"
     
 class UserToken(Base):
     """
     用户令牌表ORM模型
     """
-    __tablename__ = "user_token"
+    __tablename__ : str = "user_token"
 
     # 创建索引
-    __table_args__ = (
+    __table_args__ : tuple[Index, ...] = (
         Index('token_UNIQUE', 'token'),
         Index('fk_user_token_user_idx', 'user_id'),
     )
@@ -49,5 +47,3 @@ class UserToken(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc), comment="创建时间"
     )
-    def __repr__(self) -> str:
-        return f"<UserToken(id={self.id}, user_id={self.user_id}, token={self.token})>"

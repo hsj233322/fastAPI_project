@@ -58,5 +58,5 @@ async def delete_one_history(db: AsyncSession, record_id: int, user_id: int):
 async def delete_all_history(db: AsyncSession, user_id: int):
     """删除用户所有浏览历史"""
     stmt = delete(ViewHistory).where(ViewHistory.user_id == user_id)
-    await db.execute(stmt)
+    _ = await db.execute(stmt)
     await db.commit()

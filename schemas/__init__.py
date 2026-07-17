@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, ClassVar  
 from pydantic.config import ConfigDict
 
 T = TypeVar("T")
@@ -11,4 +11,4 @@ class ApiResponse(BaseModel, Generic[T]):
     data: T | None = None
 
 class BaseSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config : ClassVar[ConfigDict] = ConfigDict(from_attributes=True)

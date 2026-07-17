@@ -61,5 +61,6 @@ async def de_collect_all(db: AsyncSession, user_id: int):
     await db.commit()
     
     # 获取删除了多少条，用于返回给前端
-    deleted_count = result.rowcount   # type: ignore
+    rowcount = getattr(result, 'rowcount', 0)
+    deleted_count = int(rowcount)
     print(f"成功删除了 {deleted_count} 条收藏")

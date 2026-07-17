@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from models.news import Category, News
-from sqlalchemy import func, update
+from sqlalchemy import func
 
 
 async def get_categories(db: AsyncSession):

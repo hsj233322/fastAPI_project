@@ -1,7 +1,7 @@
-# config/cache_service.py
+# services/cache_service.py
 import json
 import logging
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, Type, TypeVar
 from redis.asyncio import Redis
 from pydantic import BaseModel
 
@@ -10,16 +10,16 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 class CacheService:
-    KEY_PREFIX = "myapp:v1:"  # 加版本号，方便后续缓存清理
+    KEY_PREFIX: str = "myapp:v1:"  # 加版本号，方便后续缓存清理
     
 
     def __init__(self, redis: Redis):
-        self._redis = redis
+        self._redis: Redis = redis
 
     def make_key(self, key: str) -> str:
         return f"{self.KEY_PREFIX}{key}"
 
-    async def get(self, key: str, model: Type[T]) -> Optional[T]:
+    async def get(self, key: str, model: type[T]):
         """获取单个对象，自动反序列化为 Pydantic 模型"""
         try:
             raw = await self._redis.get(self.make_key(key))
@@ -30,7 +30,7 @@ class CacheService:
             logger.warning(f"Cache GET failed for {key}: {e}")
             return None  # 降级：返回 None，让调用方走 DB
 
-    async def get_list(self, key: str, model: Type[T]) -> Optional[list[T]]:
+    async def get_list(self, key: str, model: type[T]):
         """获取列表，自动反序列化"""
         try:
             raw = await self._redis.get(self.make_key(key))
@@ -53,7 +53,7 @@ class CacheService:
             else:
                 serialized = json.dumps(value)
             
-            await self._redis.setex(full_key, ttl, serialized)
+            _ =await self._redis.setex(full_key, ttl, serialized)
             return True
         except Exception as e:
             logger.warning(f"Cache SET failed for {key}: {e}")
@@ -61,22 +61,22 @@ class CacheService:
 
     async def delete(self, key: str) -> bool:
         try:
-            await self._redis.delete(self.make_key(key))
+            _ = await self._redis.delete(self.make_key(key))
             return True
         except Exception as e:
             logger.warning(f"Cache DELETE failed for {key}: {e}")
             return False
         
-    async def incr(self, key: str, amount: int = 1) -> Optional[int]:
+    async def incr(self, key: str, amount: int = 1):
         """原子自增，用于计数场景"""
         try:
-            return await self._redis.incr(self.make_key(key), amount) 
+            _ = await self._redis.incr(self.make_key(key), amount) 
             # 返回自增后的值
         except Exception as e:
             logger.warning(f"Cache INCR failed for {key}: {e}")
             return None
 
-    async def get_int(self, key: str) -> Optional[int]:
+    async def get_int(self, key: str):
         """获取整数类型的缓存值"""
         try:
             raw = await self._redis.get(self.make_key(key))

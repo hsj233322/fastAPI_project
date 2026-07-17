@@ -8,7 +8,7 @@ from models.users import User
 from models.news import News
 
 class ViewHistory(Base):
-    __tablename__ = "news_view_history"
+    __tablename__ : str = "news_view_history"
 
     id: Mapped[int] = mapped_column(INTEGER(unsigned=True), primary_key=True, autoincrement=True, comment="记录ID")
     
