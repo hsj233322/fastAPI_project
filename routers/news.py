@@ -17,8 +17,8 @@ router = APIRouter(prefix='/api/news',tags=["新闻模块"])
 # 获取新闻分类
 @router.get("/categories", response_model=ApiResponse[list[CategoryResponse]])
 async def get_categories(
-    db: AsyncSession = Depends(get_db), 
-    cache: CacheService = Depends(get_cache),
+    db: Annotated[AsyncSession, Depends(get_db)], 
+    cache: Annotated[CacheService, Depends(get_cache)],
 ):
     cache_key = "news:categories:list"
 
@@ -36,17 +36,17 @@ async def get_categories(
     categories_pydantic = [CategoryResponse.model_validate(cat) for cat in categories_orm]
 
     # 序列化 + 写入Redis
-    await cache.set(cache_key, categories_pydantic, ttl=86400)  # 分类几乎不变，所以缓存时间可以设的久一些
+    _ = await cache.set(cache_key, categories_pydantic, ttl=86400)  # 分类几乎不变，所以缓存时间可以设的久一些
 
     return ApiResponse(data=categories_pydantic)    
 
 # 获取新闻列表
 @router.get("/list",response_model=ApiResponse[PaginatedNewsResponse])
 async def get_news(
+    db : Annotated[AsyncSession, Depends(get_db)],
     category_id: Annotated[int, Query(alias="categoryId")],
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(gt=0, le=100, alias="pageSize")] = 10,
-    db : AsyncSession = Depends(get_db)
 ):
     # 处理分页规则
     offset =  (page-1)* page_size
@@ -75,8 +75,8 @@ async def get_news(
 @router.get("/detail", response_model=ApiResponse[NewsDetailResponse])
 async def get_news_detail(
     news_id: Annotated[int, Query(alias="id")], 
-    db: AsyncSession = Depends(get_db),
-    view_counter: ViewCounterService = Depends(get_view_counter)
+    db: Annotated[AsyncSession, Depends(get_db)],
+    view_counter: Annotated[ViewCounterService, Depends(get_view_counter)]      
 ):
     news_detail = await news.get_news_detail(db, news_id)
     if not news_detail:

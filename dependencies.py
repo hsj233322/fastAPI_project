@@ -1,16 +1,15 @@
 # dependencies.py
-from typing import Optional
 from fastapi import Depends
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker,AsyncSession
+from typing import Annotated
 
-from config.redis_config import get_redis_client, redis_pool, get_redis 
+from config.redis_config import get_redis_client,  get_redis 
 from services.cache_service import CacheService
 from services.view_counter_service import ViewCounterService
 
 # 全局单例
-_view_counter: Optional[ViewCounterService] = None
-
+_view_counter: ViewCounterService | None = None
 
 def get_view_counter_service() -> ViewCounterService:
     """获取全局单例（供 lifespan 和依赖注入共同使用）"""
@@ -23,7 +22,7 @@ def get_view_counter_service() -> ViewCounterService:
     return _view_counter
 
 
-async def start_background_tasks(session_factory: async_sessionmaker):
+async def start_background_tasks(session_factory: async_sessionmaker[AsyncSession]):
     """启动所有后台任务"""
     vc = get_view_counter_service()
     await vc.start_flush_loop(session_factory)
@@ -39,13 +38,10 @@ async def stop_background_tasks():
         print("浏览量刷库任务已停止")
 
 # --- 路由依赖注入函数 ---
-
-async def get_cache(redis: Redis = Depends(get_redis)) -> CacheService:
+async def get_cache(redis: Annotated[Redis, Depends(get_redis)]) -> CacheService:
     return CacheService(redis)
 
-
 async def get_view_counter(
-    cache: CacheService = Depends(get_cache)
 ) -> ViewCounterService:
     # 复用全局单例，保证路由和 lifespan 用的是同一个实例
     return get_view_counter_service()

@@ -9,26 +9,27 @@ from schemas.users import LoginData, UserInfo, UserUpdateRequest, UserLoginReque
 from schemas import ApiResponse
 from models.users import User
 from utils.auth import get_current_user
+from typing import Annotated
 
 # 创建 APIRuter 实例
 router = APIRouter(prefix='/api/user',tags=["个人中心"])
 
 """用户注册"""
-@router.post("/register", response_model=ApiResponse)
-async def register(user_data: UserRegisterRequest, db: AsyncSession = Depends(get_db)):
+@router.post("/register", response_model=ApiResponse[None])
+async def register(user_data: UserRegisterRequest, db: Annotated[AsyncSession, Depends(get_db)])-> ApiResponse[None]:
     # 查数据库，看用户名是否存在
     db_user = await users.get_user_by_username(db, user_data.username)
     if db_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="用户已存在")
-    # 创建用户并写入数据库
-    await users.create_user(db, user_data)
+    # 创建用户并写入数据库 
+    _ = await users.create_user(db, user_data)
 
     return ApiResponse(code=200, message="注册成功")
     
     
 """用户登录"""
 @router.post("/login", response_model=ApiResponse[LoginData])
-async def login(user_data: UserLoginRequest, db: AsyncSession = Depends(get_db)): 
+async def login(user_data: UserLoginRequest, db: Annotated[AsyncSession, Depends(get_db)]): 
     # 查用户
     db_user = await users.get_user_by_username(db, user_data.username)
     if not db_user or not verify_password(user_data.password, db_user.password):
@@ -47,28 +48,28 @@ async def login(user_data: UserLoginRequest, db: AsyncSession = Depends(get_db))
 """获取个人中心"""
 @router.get("/profile", response_model=ApiResponse[UserInfo])
 async def get_profile(
-    current_user: User = Depends(get_current_user)
+    current_user: Annotated[User, Depends(get_current_user)]        
 ):
     user_info = UserInfo.model_validate(current_user)
-    return ApiResponse(data=user_info)
+    return ApiResponse[UserInfo](data=user_info)
 
 """修改个人资料"""
 @router.patch("/profile", response_model=ApiResponse[UserInfo])
 async def update_profile(
     user_data: UserUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
     updated_user = await users.update_user(db, current_user, user_data)
 
     return ApiResponse(data=UserInfo.model_validate(updated_user))
 
 """修改密码"""
-@router.put("/password", response_model=ApiResponse)
+@router.put("/password", response_model=ApiResponse[None])
 async def update_password(
     user_data: ChangePasswordRequest,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
-    await users.update_password(db, user, user_data)
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)]    
+)-> ApiResponse[None]:
+    _ = await users.update_password(db, user, user_data)
     return ApiResponse(code=200, message="密码修改成功")

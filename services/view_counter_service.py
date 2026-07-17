@@ -1,22 +1,20 @@
 # services/view_counter_service.py
 import asyncio
 import logging
-from typing import Optional
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from services.cache_service import CacheService
 
 logger = logging.getLogger(__name__)
 
-
 class ViewCounterService:
-    FLUSH_INTERVAL = 60
-    KEY_BASE = "news:views"
+    FLUSH_INTERVAL: int = 60
+    KEY_BASE: str = "news:views"
 
     def __init__(self, cache: CacheService):
-        self._cache = cache
-        self._task: Optional[asyncio.Task] = None
-        self._session_factory: Optional[async_sessionmaker] = None
-        self._running = False
+        self._cache: CacheService = cache
+        self._task: asyncio.Task[None] | None = None
+        self._session_factory: async_sessionmaker[AsyncSession] | None = None
+        self._running: bool = False
 
     def _raw_key(self, news_id: int) -> str:
         """返回不带前缀的原始 key，交给 CacheService 去加前缀"""
@@ -33,7 +31,7 @@ class ViewCounterService:
     async def record_view(self, news_id: int) -> None:
         # CacheService.incr 内部会调用 make_key 加前缀
         await self._cache.incr(self._raw_key(news_id))
-    async def start_flush_loop(self, session_factory: async_sessionmaker) -> None:
+    async def start_flush_loop(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
         self._running = True
         self._task = asyncio.create_task(self._flush_loop())
@@ -89,7 +87,7 @@ class ViewCounterService:
                     news_id = int(stripped.rsplit(":", 1)[-1])  # "123"
                     delta = int(val)
                     if delta > 0:
-                        await db.execute(
+                        _ = await db.execute(
                             text("UPDATE news SET views = views + :delta WHERE id = :id"),
                             {"delta": delta, "id": news_id},
                         )

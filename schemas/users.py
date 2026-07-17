@@ -1,5 +1,5 @@
 # schemas/users.py
-from pydantic import BaseModel, Field, ConfigDict 
+from pydantic import BaseModel, Field
 from typing import Annotated
 from schemas import BaseSchema
 

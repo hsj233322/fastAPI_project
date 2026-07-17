@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.users import User, UserToken
-from schemas.users import UserRegisterRequest, UserInfo, UserUpdateRequest, ChangePasswordRequest
+from schemas.users import UserRegisterRequest, UserUpdateRequest, ChangePasswordRequest
 from utils import security
 from fastapi import HTTPException, status
 from utils.security import verify_password, get_hash_password
