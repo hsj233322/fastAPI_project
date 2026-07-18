@@ -3,9 +3,8 @@ from schemas import BaseSchema
 from datetime import datetime
 
 class HistoryItemResponse(BaseSchema):
-    """浏览历史中每一项的响应模型"""
-    id: int
-    title: str
-    image: str | None = None 
-    category_name: str
-    view_time: datetime
+    id: int                # 浏览记录 ID
+    internship_id: int     # 岗位 ID
+    title: str             # 岗位名称
+    company_name: str      # 公司名称
+    view_time: datetime    # 浏览时间

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, Index, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column
 from models import Base, TimestampMixin
-from sqlalchemy.dialects.mysql import INTEGER
+from sqlalchemy import Integer
 
 class User(Base, TimestampMixin):
     """
@@ -17,7 +17,7 @@ class User(Base, TimestampMixin):
         Index('phone_UNIQUE', 'phone'),
     )
 
-    id: Mapped[int] = mapped_column(INTEGER(unsigned=True), primary_key=True, autoincrement=True, comment="用户ID")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="用户ID")
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, comment="用户名")
     password: Mapped[str] = mapped_column(String(255), nullable=False, comment="密码")
     nickname: Mapped[str | None] = mapped_column(String(50), comment="昵称")
@@ -40,8 +40,8 @@ class UserToken(Base):
         Index('fk_user_token_user_idx', 'user_id'),
     )
 
-    id: Mapped[int] = mapped_column(INTEGER, primary_key=True, autoincrement=True, comment="令牌ID")
-    user_id: Mapped[int] = mapped_column(INTEGER(unsigned=True), ForeignKey('user.id'), nullable=False, comment="用户ID")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="令牌ID")
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('user.id'), nullable=False, comment="用户ID")
     token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, comment="令牌值")
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, comment="令牌过期时间")
     created_at: Mapped[datetime] = mapped_column(

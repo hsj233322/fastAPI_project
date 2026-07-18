@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class ViewCounterService:
     FLUSH_INTERVAL: int = 60
-    KEY_BASE: str = "news:views"
+    KEY_BASE: str = "internship:views"
 
     def __init__(self, cache: CacheService):
         self._cache: CacheService = cache
@@ -16,21 +16,21 @@ class ViewCounterService:
         self._session_factory: async_sessionmaker[AsyncSession] | None = None
         self._running: bool = False
 
-    def _raw_key(self, news_id: int) -> str:
+    def _raw_key(self, internship_id: int) -> str:
         """返回不带前缀的原始 key，交给 CacheService 去加前缀"""
-        return f"{self.KEY_BASE}:{news_id}"
+        return f"{self.KEY_BASE}:{internship_id}"
     
     def _raw_pattern(self) -> str:
         """返回不带前缀的 scan pattern"""
         return f"{self.KEY_BASE}:*"
 
-    # 获取某个新闻的未刷盘浏览量
-    async def get_pending_views(self, news_id: int) -> int:
-        return await self._cache.get_int(self._raw_key(news_id)) or 0
+    # 获取某个岗位的未刷盘浏览量
+    async def get_pending_views(self, internship_id: int) -> int:
+        return await self._cache.get_int(self._raw_key(internship_id)) or 0
 
-    async def record_view(self, news_id: int) -> None:
+    async def record_view(self, internship_id: int) -> None:
         # CacheService.incr 内部会调用 make_key 加前缀
-        await self._cache.incr(self._raw_key(news_id))
+        await self._cache.incr(self._raw_key(internship_id))
     async def start_flush_loop(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
         self._running = True
@@ -81,15 +81,15 @@ class ViewCounterService:
                     if val is None:
                         continue
                     key_str = key.decode() if isinstance(key, bytes) else key
-                    # 先去掉完整前缀，再提取 news_id
-                    # key_str = "myapp:v1:news:views:123"
-                    stripped = key_str[len(full_prefix):]  # "news:views:123"
-                    news_id = int(stripped.rsplit(":", 1)[-1])  # "123"
+                    # 先去掉完整前缀，再提取 internship_id
+                    # key_str = "myapp:v1:internship:views:123"
+                    stripped = key_str[len(full_prefix):]  # "internship:views:123"
+                    internship_id = int(stripped.rsplit(":", 1)[-1])  # "123"
                     delta = int(val)
                     if delta > 0:
                         _ = await db.execute(
-                            text("UPDATE news SET views = views + :delta WHERE id = :id"),
-                            {"delta": delta, "id": news_id},
+                            text("UPDATE internship SET views = views + :delta WHERE id = :id"),
+                            {"delta": delta, "id": internship_id},
                         )
                         updated += 1
                 await db.commit()
@@ -98,7 +98,7 @@ class ViewCounterService:
                 break
 
         if updated:
-            logger.info(f"ViewCounter flushed {updated} news views to DB")
+            logger.info(f"ViewCounter flushed {updated} internship views to DB")
         else:
             logger.debug("ViewCounter flush: no pending views found")
 

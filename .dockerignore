@@ -1,4 +1,4 @@
-venv/
+# 你的现有内容（保留）
 .git/
 __pycache__/
 *.pyc
@@ -6,3 +6,11 @@ __pycache__/
 .dockerignore
 Dockerfile
 docker-compose.yml
+
+.venv/      
+*.log    
+*.db            # 本地数据库文件（如 SQLite）
+.pytest_cache/  # 测试缓存
+.mypy_cache/    # 类型检查缓存
+.idea/          # 如果你用 PyCharm
+.vscode/        # 如果你用 VS Code

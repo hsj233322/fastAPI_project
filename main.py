@@ -4,12 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from config.redis_config import redis_pool
 from dependencies import start_background_tasks, stop_background_tasks 
 
 # 路由
-from routers import news, users, collects, historys
+from routers import internship, users, collects, historys
 
 # 数据库相关
 from models import Base 
@@ -18,12 +19,7 @@ from config.db_config import async_engine, get_db
 """注册模型，触发建表"""
 from models.collects import Collect     
 from models.historys import ViewHistory
-
-# main.py
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-# 导入封装好的启停函数
-from dependencies import start_background_tasks, stop_background_tasks 
+from models.internship import Internship, InternshipCategory
 
 import logging
 
@@ -78,7 +74,7 @@ async def root():
     return {"message": "Hello World"}
 
 # 挂载路由
-app.include_router(news.router)
+app.include_router(internship.router)
 app.include_router(users.router)
 app.include_router(collects.router)
 app.include_router(historys.router)
@@ -101,6 +97,32 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "code": exc.status_code,
             "message": exc.detail,    
             "data": None               
+        }
+    )
+
+# 数据库完整性约束异常处理器
+@app.exception_handler(IntegrityError)
+async def integrity_exception_handler(request: Request, exc: IntegrityError):
+    logger.error(f"数据库完整性约束错误: {exc}")
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": 400,
+            "message": "数据完整性约束错误（可能是重复提交或关联数据不存在）",
+            "data": None
+        }
+    )
+
+# 数据库操作异常处理器
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
+    logger.error(f"数据库操作错误: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": 500,
+            "message": "数据库操作失败",
+            "data": None
         }
     )
 

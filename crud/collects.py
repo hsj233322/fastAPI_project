@@ -1,66 +1,65 @@
 # crud/collects.py
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete  # 这里增加了 delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.news import News, Category
-from models.collects import Collect
 from fastapi import HTTPException, status
 
+from models.collects import Collect
+from models.internship import Internship
 
-async def get_user_collects(db: AsyncSession, user_id: int):
-    """获取某用户的所有收藏新闻"""
+
+async def add_collect(db: AsyncSession, user_id: int, internship_id: int):
+    """添加收藏（重复收藏静默成功）"""
+    exists = await db.execute(
+        select(Collect).where(
+            Collect.user_id == user_id,
+            Collect.internship_id == internship_id,
+        )
+    )
+    if exists.scalar_one_or_none():
+        return  # 已经收藏
+
+    db.add(Collect(user_id=user_id, internship_id=internship_id))
+    await db.commit()
+
+
+async def remove_collect(db: AsyncSession, user_id: int, internship_id: int):
+    """取消收藏（不存在则404）"""
+    stmt = await db.execute(
+        select(Collect).where(
+            Collect.user_id == user_id,
+            Collect.internship_id == internship_id,
+        )
+    )
+    record = stmt.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="未收藏该岗位")
+    await db.delete(record)
+    await db.commit()
+
+
+async def get_user_collects(
+    db: AsyncSession, user_id: int, skip: int = 0, limit: int = 20
+):
+    """获取用户收藏列表，返回收藏记录与岗位信息"""
     query = (
         select(
-            News.id.label("news_id"), 
-            News.title, 
-            News.image,
-            Category.category_name,
-            Collect.created_at
+            Collect.internship_id,
+            Internship.title,
+            Internship.category_id,  # 如果需要 category_name，再 join 分类表
+            Collect.created_at,
         )
-        .join(Collect, Collect.news_id == News.id)          # news ↔ collect
-        .join(Category, Category.id == News.category_id)    # news ↔ category
-        .where(Collect.user_id == user_id)                  # 过滤出当前用户的收藏
-        .order_by(Collect.created_at.desc())                # 按收藏时间倒序
+        .join(Internship, Collect.internship_id == Internship.id)
+        .where(Collect.user_id == user_id)
+        .order_by(Collect.created_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
     result = await db.execute(query)
-    return result.mappings().all()
+    return result.all()
 
 
-async def toggle_collect_news(db: AsyncSession, user_id: int, news_id: int) -> bool:
-    """切换收藏状态：如果已收藏则取消，如果未收藏则添加"""
-
-    # 先查一下数据库里有没有这条收藏记录
-    query = select(Collect).where(
-        Collect.user_id == user_id, 
-        Collect.news_id == news_id
-    )
-    result = await db.execute(query)
-    existing_collect = result.scalar_one_or_none()
-    
-    # 如果存在，说明用户想取消收藏
-    if existing_collect:
-        await db.delete(existing_collect)
-        await db.commit()
-        return False # 返回 False 代表现在是未收藏状态
-        
-    # 如果不存在，说明用户想“添加收藏”
-    else:
-        # 先查一下这篇新闻存不存在
-        news_exists = await db.get(News, news_id)
-        if not news_exists:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新闻不存在")
-            
-        new_collect = Collect(user_id=user_id, news_id=news_id)
-        db.add(new_collect)
-        await db.commit()
-        return True # 返回 True 代表现在是已收藏状态
-    
-async def de_collect_all(db: AsyncSession, user_id: int):
-    """删除用户的所有收藏"""
+async def clear_user_collects(db: AsyncSession, user_id: int):
+    """清空指定用户的所有收藏"""
     stmt = delete(Collect).where(Collect.user_id == user_id)
-    result = await db.execute(stmt)
+    await db.execute(stmt)
     await db.commit()
-    
-    # 获取删除了多少条，用于返回给前端
-    rowcount = getattr(result, 'rowcount', 0)
-    deleted_count = int(rowcount)
-    print(f"成功删除了 {deleted_count} 条收藏")

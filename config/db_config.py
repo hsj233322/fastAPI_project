@@ -5,13 +5,15 @@ import os
 # 1. 数据库 URL(优先读取环境变量，如果没有则使用默认的本地 localhost)
 ASYNC_DATABASE_URL = os.getenv(
     "ASYNC_DATABASE_URL", 
-    "mysql+aiomysql://myuser:123456@localhost:3306/news_app?charset=utf8mb4"
+    "mysql+aiomysql://myuser:123456@localhost:3306/internship_app?charset=utf8mb4"
 )
 
 # 2. 创建异步引擎 (Engine)
+SQL_ECHO = os.getenv("SQL_ECHO", "false").lower() == "true"
+
 async_engine = create_async_engine(
     ASYNC_DATABASE_URL,
-    echo=True,          
+    echo=SQL_ECHO,          
     pool_size=10,       
     max_overflow=20     
 )
