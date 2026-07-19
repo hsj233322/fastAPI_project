@@ -1,6 +1,6 @@
 # crud/internship.py
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from models.internship import InternshipCategory, Internship
 
 
@@ -28,8 +28,24 @@ async def get_internship_list(
         stmt = stmt.where(Internship.category_id == category_id)
     if province is not None:
         stmt = stmt.where(Internship.province == province)
-    if education is not None:
-        stmt = stmt.where(Internship.education == education)
+    if education is not None and education.strip():
+        if education == "专科":
+            stmt = stmt.where(
+                or_(
+                    Internship.education == "专科及以上",
+                    Internship.education == "本科及以上",
+                    Internship.education == "硕士及以上",
+                )
+            )
+        elif education == "本科":
+            stmt = stmt.where(
+                or_(
+                    Internship.education == "本科及以上",
+                    Internship.education == "硕士及以上",
+                )
+            )
+        elif education == "硕士":
+            stmt = stmt.where(Internship.education == "硕士及以上")
 
     stmt = stmt.order_by(Internship.publish_time.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
@@ -49,8 +65,24 @@ async def get_internship_count(
         stmt = stmt.where(Internship.category_id == category_id)
     if province is not None:
         stmt = stmt.where(Internship.province == province)
-    if education is not None:
-        stmt = stmt.where(Internship.education == education)
+    if education is not None and education.strip():
+        if education == "专科":
+            stmt = stmt.where(
+                or_(
+                    Internship.education == "专科及以上",
+                    Internship.education == "本科及以上",
+                    Internship.education == "硕士及以上",
+                )
+            )
+        elif education == "本科":
+            stmt = stmt.where(
+                or_(
+                    Internship.education == "本科及以上",
+                    Internship.education == "硕士及以上",
+                )
+            )
+        elif education == "硕士":
+            stmt = stmt.where(Internship.education == "硕士及以上")
 
     result = await db.execute(stmt)
     return result.scalar_one()

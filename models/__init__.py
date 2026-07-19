@@ -1,5 +1,5 @@
 # models/__init__.py
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import DateTime
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -18,12 +18,12 @@ class TimestampMixin:
     """
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(),
         comment="创建时间",
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(),
+        onupdate=lambda: datetime.now(),
         comment="更新时间",
     )

@@ -1,5 +1,5 @@
 # models/users.py
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import String, DateTime, Index, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column
@@ -45,5 +45,5 @@ class UserToken(Base):
     token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, comment="令牌值")
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, comment="令牌过期时间")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), comment="创建时间"
+        DateTime, default=lambda: datetime.now(), comment="创建时间"
     )

@@ -36,10 +36,24 @@ const api = {
                 throw new Error('响应解析失败');
             }
             if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('userInfo');
+                    ElMessage.warning('登录已过期，请重新登录');
+                    window.dispatchEvent(new CustomEvent('auth-expired'));
+                    throw new Error('登录已过期');
+                }
                 ElMessage.error(res.message || '请求失败');
                 throw new Error(res.message || 'Error');
             }
             if (res.code !== undefined && res.code !== 200) {
+                if (res.message && res.message.includes('Token')) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('userInfo');
+                    ElMessage.warning('登录已过期，请重新登录');
+                    window.dispatchEvent(new CustomEvent('auth-expired'));
+                    throw new Error('登录已过期');
+                }
                 ElMessage.error(res.message || '请求失败');
                 throw new Error(res.message || 'Error');
             }
@@ -47,7 +61,7 @@ const api = {
         } catch (e) {
             if (e.message === 'Failed to fetch') {
                 ElMessage.error('网络异常，请稍后重试');
-            } else if (!e.message.includes('请求失败')) {
+            } else if (!e.message.includes('请求失败') && !e.message.includes('登录已过期')) {
                 ElMessage.error(e.message || '网络异常');
             }
             throw e;

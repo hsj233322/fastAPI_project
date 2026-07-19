@@ -270,11 +270,21 @@ body {
 }
 
 /* ============ 详情弹窗 ============ */
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
 .detail-title {
     font-size: 22px;
     font-weight: 700;
     color: #303133;
-    margin-bottom: 8px;
+    flex: 1;
+    margin: 0;
+    padding-right: 16px;
+    line-height: 1.4;
 }
 
 .detail-salary {
@@ -359,6 +369,8 @@ body {
     align-items: center;
     gap: 4px;
 }
+
+
 
 /* ============ 页脚 ============ */
 .app-footer {

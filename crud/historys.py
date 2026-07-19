@@ -1,5 +1,5 @@
 # crud/historys.py
-from datetime import datetime, timezone
+from datetime import datetime
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
@@ -18,7 +18,7 @@ async def add_view_history(db: AsyncSession, user_id: int, internship_id: int):
     record = result.scalar_one_or_none()
 
     if record:
-        record.view_time = datetime.now(timezone.utc)
+        record.view_time = datetime.now()
     else:
         record = ViewHistory(user_id=user_id, internship_id=internship_id)
         db.add(record)

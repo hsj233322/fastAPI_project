@@ -23,8 +23,7 @@ const app = createApp({
 
         const educationList = ref([
             { label: '不限', value: '' },
-            { label: '中专及以上', value: '中专' },
-            { label: '大专及以上', value: '大专' },
+            { label: '专科及以上', value: '专科' },
             { label: '本科及以上', value: '本科' },
             { label: '硕士及以上', value: '硕士' }
         ]);

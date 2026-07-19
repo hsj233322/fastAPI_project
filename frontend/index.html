@@ -90,11 +90,7 @@
                         <span class="filter-label" style="margin-left: 16px;">学历：</span>
                         <el-select v-model="filters.education" placeholder="全部学历" clearable
                             style="width: 160px;" @change="loadList(1)">
-                            <el-option label="不限" value="不限" />
-                            <el-option label="中专及以上" value="中专及以上" />
-                            <el-option label="大专及以上" value="大专及以上" />
-                            <el-option label="本科及以上" value="本科及以上" />
-                            <el-option label="硕士及以上" value="硕士及以上" />
+                            <el-option v-for="edu in educationList" :key="edu.value" :label="edu.label" :value="edu.value" />
                         </el-select>
                     </div>
                 </el-card>
@@ -116,14 +112,12 @@
                                 <el-icon><View /></el-icon>{{ job.views }}
                             </span>
                         </div>
-                        <div class="job-card-tags" v-if="job.tags">
+                        <div class="job-card-tags" v-show="job.tags">
                             <el-tag v-for="(tag, i) in parseTags(job.tags).slice(0, 4)" :key="i" size="small"
                                 type="success" effect="plain">{{ tag }}</el-tag>
                         </div>
                         <div class="job-card-footer">
                             <span class="job-time">{{ formatTime(job.publish_time) }}</span>
-                            <el-button :type="collectedIds.has(job.id) ? 'success' : 'primary'" size="small" plain
-                                @click.stop="toggleCollect(job.id)">{{ collectedIds.has(job.id) ? '已收藏' : '收藏' }}</el-button>
                         </div>
                     </el-card>
 
@@ -139,7 +133,7 @@
 
             <!-- ===== 我的收藏 ===== -->
             <div v-show="activeMenu === 'collects'">
-                <el-card shadow="never">
+                <el-card shadow="never" style="margin-bottom: 16px;">
                     <template #header>
                         <div class="card-header">
                             <span>我的收藏 ({{ collectList.length }})</span>
@@ -147,28 +141,31 @@
                                 :disabled="collectList.length === 0">清空收藏</el-button>
                         </div>
                     </template>
-                    <el-table :data="collectList" style="width: 100%" v-loading="collectLoading">
-                        <el-table-column prop="title" label="岗位名称" min-width="200" />
-                        <el-table-column prop="category_name" label="分类" width="120" />
-                        <el-table-column prop="created_at" label="收藏时间" width="180">
-                            <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="180">
-                            <template #default="{ row }">
-                                <el-button size="small" type="primary" plain
-                                    @click="openDetail(row.internship_id)">查看详情</el-button>
-                                <el-button size="small" type="danger" plain
-                                    @click="toggleCollect(row.internship_id)">取消收藏</el-button>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!collectLoading && collectList.length === 0" description="还没有收藏任何岗位" />
                 </el-card>
+
+                <div class="job-list" v-loading="collectLoading">
+                    <el-card v-for="item in collectList" :key="item.internship_id" class="job-card" shadow="hover"
+                        @click="openDetail(item.internship_id)">
+                        <div class="job-card-header">
+                            <h3 class="job-title">{{ item.title }}</h3>
+                        </div>
+                        <div class="job-card-meta">
+                            <el-tag size="small" type="info" effect="plain">{{ item.category_name || '其他' }}</el-tag>
+                            <span class="job-time">{{ formatTime(item.created_at) }}</span>
+                        </div>
+                        <div class="job-card-footer">
+                            <el-button type="danger" size="small" plain
+                                @click.stop="toggleCollect(item.internship_id)">取消收藏</el-button>
+                        </div>
+                    </el-card>
+
+                    <el-empty v-if="!collectLoading && collectList.length === 0" description="还没有收藏任何岗位" />
+                </div>
             </div>
 
             <!-- ===== 浏览历史 ===== -->
             <div v-show="activeMenu === 'history'">
-                <el-card shadow="never">
+                <el-card shadow="never" style="margin-bottom: 16px;">
                     <template #header>
                         <div class="card-header">
                             <span>浏览历史 ({{ historyList.length }})</span>
@@ -176,23 +173,26 @@
                                 :disabled="historyList.length === 0">清空历史</el-button>
                         </div>
                     </template>
-                    <el-table :data="historyList" style="width: 100%" v-loading="historyLoading">
-                        <el-table-column prop="title" label="岗位名称" min-width="200" />
-                        <el-table-column prop="company_name" label="公司" min-width="200" />
-                        <el-table-column prop="view_time" label="浏览时间" width="180">
-                            <template #default="{ row }">{{ formatTime(row.view_time) }}</template>
-                        </el-table-column>
-                        <el-table-column label="操作" width="180">
-                            <template #default="{ row }">
-                                <el-button size="small" type="primary" plain
-                                    @click="openDetail(row.internship_id)">再次查看</el-button>
-                                <el-button size="small" type="danger" plain
-                                    @click="deleteHistory(row.id)">删除</el-button>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                    <el-empty v-if="!historyLoading && historyList.length === 0" description="还没有浏览记录" />
                 </el-card>
+
+                <div class="job-list" v-loading="historyLoading">
+                    <el-card v-for="item in historyList" :key="item.id" class="job-card" shadow="hover"
+                        @click="openDetail(item.internship_id)">
+                        <div class="job-card-header">
+                            <h3 class="job-title">{{ item.title }}</h3>
+                        </div>
+                        <div class="job-card-company">{{ item.company_name }}</div>
+                        <div class="job-card-meta">
+                            <span class="job-time">{{ formatTime(item.view_time) }}</span>
+                        </div>
+                        <div class="job-card-footer">
+                            <el-button type="danger" size="small" plain
+                                @click.stop="deleteHistory(item.id)">删除</el-button>
+                        </div>
+                    </el-card>
+
+                    <el-empty v-if="!historyLoading && historyList.length === 0" description="还没有浏览记录" />
+                </div>
             </div>
         </el-main>
 
@@ -200,7 +200,11 @@
         <el-dialog v-model="detailVisible" title="岗位详情" width="720px" top="5vh">
             <div v-loading="detailLoading">
                 <template v-if="currentDetail">
-                    <h2 class="detail-title">{{ currentDetail.title }}</h2>
+                    <div class="detail-header">
+                        <h2 class="detail-title">{{ currentDetail.title }}</h2>
+                        <el-button :type="collectedIds.has(currentDetail.id) ? 'success' : 'primary'" size="default"
+                            @click="toggleCollect(currentDetail.id)">{{ collectedIds.has(currentDetail.id) ? '已收藏' : '收藏' }}</el-button>
+                    </div>
                     <div class="detail-salary">{{ currentDetail.salary_min }}-{{ currentDetail.salary_max }}k · 月薪</div>
 
                     <el-descriptions :column="2" border class="detail-desc">
