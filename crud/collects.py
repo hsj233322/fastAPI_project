@@ -1,10 +1,11 @@
 # crud/collects.py
-from sqlalchemy import select, delete  # 这里增加了 delete
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
 from models.collects import Collect
 from models.internship import Internship
+from models.internship import InternshipCategory
 
 
 async def add_collect(db: AsyncSession, user_id: int, internship_id: int):
@@ -16,7 +17,7 @@ async def add_collect(db: AsyncSession, user_id: int, internship_id: int):
         )
     )
     if exists.scalar_one_or_none():
-        return  # 已经收藏
+        return
 
     db.add(Collect(user_id=user_id, internship_id=internship_id))
     await db.commit()
@@ -45,10 +46,11 @@ async def get_user_collects(
         select(
             Collect.internship_id,
             Internship.title,
-            Internship.category_id,  # 如果需要 category_name，再 join 分类表
+            InternshipCategory.category_name,
             Collect.created_at,
         )
         .join(Internship, Collect.internship_id == Internship.id)
+        .outerjoin(InternshipCategory, Internship.category_id == InternshipCategory.id)
         .where(Collect.user_id == user_id)
         .order_by(Collect.created_at.desc())
         .offset(skip)

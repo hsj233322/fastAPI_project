@@ -1,0 +1,411 @@
+/* ============ 全局重置 ============ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background-color: #f5f7fa;
+    color: #303133;
+    min-height: 100vh;
+}
+
+#app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============ 顶部导航 ============ */
+.app-header {
+    background: #fff;
+    border-bottom: 1px solid #ebeef5;
+    height: 64px !important;
+    line-height: 64px;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    height: 64px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    margin-right: 48px;
+}
+
+.logo-text {
+    font-size: 22px;
+    font-weight: 700;
+    color: #409eff;
+    letter-spacing: 1px;
+}
+
+.logo-sub {
+    font-size: 12px;
+    color: #909399;
+    margin-left: 4px;
+}
+
+.nav-menu {
+    flex: 1;
+    border-bottom: none !important;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    outline: none;
+}
+
+.username {
+    font-size: 14px;
+    color: #606266;
+}
+
+/* ============ 主内容 ============ */
+.app-main {
+    flex: 1;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+/* ============ 横幅 ============ */
+.banner {
+    background: linear-gradient(135deg, #409eff 0%, #667eea 100%);
+    color: #fff;
+    padding: 48px 32px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.banner h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.banner p {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* ============ 筛选区 ============ */
+.filter-card {
+    margin-bottom: 24px;
+    border-radius: 8px;
+}
+
+.filter-row {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.filter-row:last-child {
+    margin-bottom: 0;
+}
+
+.filter-label {
+    font-size: 14px;
+    color: #606266;
+    min-width: 80px;
+    line-height: 32px;
+    font-weight: 500;
+}
+
+.filter-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex: 1;
+}
+
+.filter-tag {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-tag:hover {
+    transform: translateY(-1px);
+}
+
+/* ============ 岗位列表 ============ */
+.job-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px;
+    min-height: 200px;
+}
+
+.job-card {
+    cursor: pointer;
+    transition: all 0.25s;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    min-height: 180px; 
+}
+
+.job-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+.job-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.job-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #303133;
+    margin: 0;
+    flex: 1;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 12px;
+}
+
+.job-salary {
+    color: #f56c6c;
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+}
+
+.job-card-company {
+    font-size: 13px;
+    color: #606266;
+    margin-bottom: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.job-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.job-views {
+    margin-left: auto;
+    font-size: 12px;
+    color: #909399;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.job-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+    min-height: 32px;
+}
+
+.job-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px dashed #ebeef5;
+    margin-top: auto; 
+}
+
+.job-time {
+    font-size: 12px;
+    color: #909399;
+}
+
+/* ============ 分页 ============ */
+.pagination {
+    margin-top: 32px;
+    display: flex;
+    justify-content: center;
+}
+
+/* ============ 卡片头部 ============ */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ============ 详情弹窗 ============ */
+.detail-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #303133;
+    margin-bottom: 8px;
+}
+
+.detail-salary {
+    color: #f56c6c;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.detail-desc {
+    margin-bottom: 24px;
+}
+
+.detail-section {
+    margin-bottom: 24px;
+}
+
+.detail-section h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #303133;
+    margin-bottom: 12px;
+    padding-left: 8px;
+    border-left: 3px solid #409eff;
+}
+
+.detail-section p {
+    color: #606266;
+    line-height: 1.8;
+    font-size: 14px;
+}
+
+.detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.related-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.related-card {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.related-card:hover {
+    transform: translateY(-2px);
+}
+
+.related-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #303133;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.related-company {
+    font-size: 12px;
+    color: #909399;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.related-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #c0c4cc;
+}
+
+.related-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ============ 页脚 ============ */
+.app-footer {
+    background: #fff;
+    border-top: 1px solid #ebeef5;
+    text-align: center;
+    padding: 16px;
+    color: #909399;
+    font-size: 12px;
+    height: auto !important;
+}
+
+/* ============ 响应式 ============ */
+@media (max-width: 768px) {
+    .header-inner {
+        padding: 0 12px;
+    }
+
+    .logo-sub {
+        display: none;
+    }
+
+    .nav-menu {
+        display: none;
+    }
+
+    .app-main {
+        padding: 12px;
+    }
+
+    .banner {
+        padding: 32px 16px;
+    }
+
+    .banner h1 {
+        font-size: 24px;
+    }
+
+    .job-list {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-row {
+        flex-direction: column;
+    }
+
+    .filter-label {
+        margin-bottom: 8px;
+    }
+}

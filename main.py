@@ -2,9 +2,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+import os
 
 from config.redis_config import redis_pool
 from dependencies import start_background_tasks, stop_background_tasks 
@@ -69,15 +71,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
 # 挂载路由
 app.include_router(internship.router)
 app.include_router(users.router)
 app.include_router(collects.router)
 app.include_router(historys.router)
+
+# 挂载前端静态资源（放在路由之后，避免拦截 /api 请求）
+# 通过访问 http://localhost:8000/ 即可打开前端页面
+_frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
+if os.path.isdir(_frontend_dir):
+    app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
 
 
 """--------异常处理--------"""

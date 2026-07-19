@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实习帮 - 高校实习岗位平台</title>
+
+    <!-- Element Plus 图标 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/index.css">
+    <!-- 自定义样式 -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+    <div id="app">
+        <!-- ============ 顶部导航栏 ============ -->
+        <el-header class="app-header">
+            <div class="header-inner">
+                <div class="logo" @click="goHome">
+                    <el-icon :size="28" color="#409eff">
+                        <Briefcase />
+                    </el-icon>
+                    <span class="logo-text">实习帮</span>
+                    <span class="logo-sub">高校就业实习平台</span>
+                </div>
+
+                <el-menu :default-active="activeMenu" mode="horizontal" class="nav-menu" @select="handleMenuSelect">
+                    <el-menu-item index="home">岗位大厅</el-menu-item>
+                    <el-menu-item index="collects" v-if="isLoggedIn">我的收藏</el-menu-item>
+                    <el-menu-item index="history" v-if="isLoggedIn">浏览历史</el-menu-item>
+                </el-menu>
+
+                <div class="header-right">
+                    <template v-if="isLoggedIn">
+                        <el-dropdown @command="handleUserCommand">
+                            <span class="user-info">
+                                <el-avatar :size="32" :src="userInfo.avatar">{{ userInfo.username.charAt(0).toUpperCase() }}</el-avatar>
+                                <span class="username">{{ userInfo.username }}</span>
+                                <el-icon><ArrowDown /></el-icon>
+                            </span>
+                            <template #dropdown>
+                                <el-dropdown-menu>
+                                    <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                                    <el-dropdown-item command="password">修改密码</el-dropdown-item>
+                                    <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+                                </el-dropdown-menu>
+                            </template>
+                        </el-dropdown>
+                    </template>
+                    <template v-else>
+                        <el-button type="primary" plain @click="showLoginDialog">登录</el-button>
+                        <el-button type="primary" @click="showRegisterDialog">注册</el-button>
+                    </template>
+                </div>
+            </div>
+        </el-header>
+
+        <!-- ============ 主内容区 ============ -->
+        <el-main class="app-main">
+            <!-- ===== 首页：岗位大厅 ===== -->
+            <div v-show="activeMenu === 'home'">
+                <!-- 横幅 -->
+                <div class="banner">
+                    <h1>找到你的下一份实习</h1>
+                    <p>汇聚全国高校就业网真实实习岗位 · 每日更新</p>
+                </div>
+
+                <!-- 筛选区 -->
+                <el-card class="filter-card" shadow="never">
+                    <div class="filter-row">
+                        <span class="filter-label">岗位分类：</span>
+                        <div class="filter-tags">
+                            <el-tag :type="filters.categoryId === null ? 'primary' : 'info'" effect="plain"
+                                @click="setCategory(null)" class="filter-tag">全部</el-tag>
+                            <el-tag v-for="cat in categories" :key="cat.id"
+                                :type="filters.categoryId === cat.id ? 'primary' : 'info'" effect="plain"
+                                @click="setCategory(cat.id)" class="filter-tag">
+                                {{ cat.category_name }}
+                            </el-tag>
+                        </div>
+                    </div>
+                    <div class="filter-row">
+                        <span class="filter-label">省份：</span>
+                        <el-select v-model="filters.province" placeholder="全部省份" clearable filterable
+                            style="width: 160px;" @change="loadList(1)">
+                            <el-option v-for="p in provinceList" :key="p" :label="p" :value="p" />
+                        </el-select>
+
+                        <span class="filter-label" style="margin-left: 16px;">学历：</span>
+                        <el-select v-model="filters.education" placeholder="全部学历" clearable
+                            style="width: 160px;" @change="loadList(1)">
+                            <el-option label="不限" value="不限" />
+                            <el-option label="中专及以上" value="中专及以上" />
+                            <el-option label="大专及以上" value="大专及以上" />
+                            <el-option label="本科及以上" value="本科及以上" />
+                            <el-option label="硕士及以上" value="硕士及以上" />
+                        </el-select>
+                    </div>
+                </el-card>
+
+                <!-- 岗位列表 -->
+                <div class="job-list" v-loading="listLoading">
+                    <el-card v-for="job in jobList" :key="job.id" class="job-card" shadow="hover"
+                        @click="openDetail(job.id)">
+                        <div class="job-card-header">
+                            <h3 class="job-title">{{ job.title }}</h3>
+                            <span class="job-salary">{{ job.salary_min }}-{{ job.salary_max }}k</span>
+                        </div>
+                        <div class="job-card-company">{{ job.company_name }}</div>
+                        <div class="job-card-meta">
+                            <el-tag size="small" type="info" effect="plain">{{ job.province }}</el-tag>
+                            <el-tag size="small" type="info" effect="plain">{{ job.education || '学历不限' }}</el-tag>
+                            <el-tag size="small" type="info" effect="plain">招{{ job.headcount }}人</el-tag>
+                            <span class="job-views">
+                                <el-icon><View /></el-icon>{{ job.views }}
+                            </span>
+                        </div>
+                        <div class="job-card-tags" v-if="job.tags">
+                            <el-tag v-for="(tag, i) in parseTags(job.tags).slice(0, 4)" :key="i" size="small"
+                                type="success" effect="plain">{{ tag }}</el-tag>
+                        </div>
+                        <div class="job-card-footer">
+                            <span class="job-time">{{ formatTime(job.publish_time) }}</span>
+                            <el-button :type="collectedIds.has(job.id) ? 'success' : 'primary'" size="small" plain
+                                @click.stop="toggleCollect(job.id)">{{ collectedIds.has(job.id) ? '已收藏' : '收藏' }}</el-button>
+                        </div>
+                    </el-card>
+
+                    <el-empty v-if="!listLoading && jobList.length === 0" description="暂无符合条件的岗位" />
+                </div>
+
+                <!-- 分页 -->
+                <div class="pagination" v-if="total > 0">
+                    <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total"
+                        layout="prev, pager, next, total" @current-change="loadList()" background />
+                </div>
+            </div>
+
+            <!-- ===== 我的收藏 ===== -->
+            <div v-show="activeMenu === 'collects'">
+                <el-card shadow="never">
+                    <template #header>
+                        <div class="card-header">
+                            <span>我的收藏 ({{ collectList.length }})</span>
+                            <el-button type="danger" size="small" plain @click="clearCollects"
+                                :disabled="collectList.length === 0">清空收藏</el-button>
+                        </div>
+                    </template>
+                    <el-table :data="collectList" style="width: 100%" v-loading="collectLoading">
+                        <el-table-column prop="title" label="岗位名称" min-width="200" />
+                        <el-table-column prop="category_name" label="分类" width="120" />
+                        <el-table-column prop="created_at" label="收藏时间" width="180">
+                            <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+                        </el-table-column>
+                        <el-table-column label="操作" width="180">
+                            <template #default="{ row }">
+                                <el-button size="small" type="primary" plain
+                                    @click="openDetail(row.internship_id)">查看详情</el-button>
+                                <el-button size="small" type="danger" plain
+                                    @click="toggleCollect(row.internship_id)">取消收藏</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-empty v-if="!collectLoading && collectList.length === 0" description="还没有收藏任何岗位" />
+                </el-card>
+            </div>
+
+            <!-- ===== 浏览历史 ===== -->
+            <div v-show="activeMenu === 'history'">
+                <el-card shadow="never">
+                    <template #header>
+                        <div class="card-header">
+                            <span>浏览历史 ({{ historyList.length }})</span>
+                            <el-button type="danger" size="small" plain @click="clearHistory"
+                                :disabled="historyList.length === 0">清空历史</el-button>
+                        </div>
+                    </template>
+                    <el-table :data="historyList" style="width: 100%" v-loading="historyLoading">
+                        <el-table-column prop="title" label="岗位名称" min-width="200" />
+                        <el-table-column prop="company_name" label="公司" min-width="200" />
+                        <el-table-column prop="view_time" label="浏览时间" width="180">
+                            <template #default="{ row }">{{ formatTime(row.view_time) }}</template>
+                        </el-table-column>
+                        <el-table-column label="操作" width="180">
+                            <template #default="{ row }">
+                                <el-button size="small" type="primary" plain
+                                    @click="openDetail(row.internship_id)">再次查看</el-button>
+                                <el-button size="small" type="danger" plain
+                                    @click="deleteHistory(row.id)">删除</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-empty v-if="!historyLoading && historyList.length === 0" description="还没有浏览记录" />
+                </el-card>
+            </div>
+        </el-main>
+
+        <!-- ============ 岗位详情弹窗 ============ -->
+        <el-dialog v-model="detailVisible" title="岗位详情" width="720px" top="5vh">
+            <div v-loading="detailLoading">
+                <template v-if="currentDetail">
+                    <h2 class="detail-title">{{ currentDetail.title }}</h2>
+                    <div class="detail-salary">{{ currentDetail.salary_min }}-{{ currentDetail.salary_max }}k · 月薪</div>
+
+                    <el-descriptions :column="2" border class="detail-desc">
+                        <el-descriptions-item label="公司">{{ currentDetail.company_name }}</el-descriptions-item>
+                        <el-descriptions-item label="省份">{{ currentDetail.province }}</el-descriptions-item>
+                        <el-descriptions-item label="学历要求">{{ currentDetail.education || '不限' }}</el-descriptions-item>
+                        <el-descriptions-item label="招聘人数">{{ currentDetail.headcount }}人</el-descriptions-item>
+                        <el-descriptions-item label="单位性质">{{ currentDetail.company_type || '-' }}</el-descriptions-item>
+                        <el-descriptions-item label="单位规模">{{ currentDetail.company_scale || '-' }}</el-descriptions-item>
+                        <el-descriptions-item label="发布时间">{{ formatTime(currentDetail.publish_time) }}</el-descriptions-item>
+                        <el-descriptions-item label="浏览量">{{ currentDetail.views }}</el-descriptions-item>
+                    </el-descriptions>
+
+                    <div class="detail-section" v-if="currentDetail.major">
+                        <h4>专业要求</h4>
+                        <p>{{ currentDetail.major }}</p>
+                    </div>
+
+                    <div class="detail-section" v-if="currentDetail.tags">
+                        <h4>福利待遇</h4>
+                        <div class="detail-tags">
+                            <el-tag v-for="(tag, i) in parseTags(currentDetail.tags)" :key="i" type="success"
+                                effect="plain">{{ tag }}</el-tag>
+                        </div>
+                    </div>
+
+                    <div class="detail-section" v-if="currentDetail.related_internships && currentDetail.related_internships.length">
+                        <h4>相关岗位推荐</h4>
+                        <div class="related-list">
+                            <el-card v-for="r in currentDetail.related_internships" :key="r.id" shadow="hover"
+                                class="related-card" @click="openDetail(r.id)">
+                                <div class="related-title">{{ r.title }}</div>
+                                <div class="related-company">{{ r.company_name }}</div>
+                                <div class="related-meta">
+                                    <span>{{ formatTime(r.publish_time) }}</span>
+                                    <span><el-icon><View /></el-icon>{{ r.views }}</span>
+                                </div>
+                            </el-card>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </el-dialog>
+
+        <!-- ============ 登录弹窗 ============ -->
+        <el-dialog v-model="loginVisible" title="登录" width="400px">
+            <el-form :model="loginForm" :rules="loginRules" ref="loginFormRef" label-width="0">
+                <el-form-item prop="username">
+                    <el-input v-model="loginForm.username" placeholder="用户名" :prefix-icon="User" size="large" />
+                </el-form-item>
+                <el-form-item prop="password">
+                    <el-input v-model="loginForm.password" type="password" placeholder="密码（至少8位）"
+                        :prefix-icon="Lock" size="large" show-password @keyup.enter="doLogin" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="loginVisible = false">取消</el-button>
+                <el-button type="primary" @click="doLogin" :loading="loginLoading">登录</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- ============ 注册弹窗 ============ -->
+        <el-dialog v-model="registerVisible" title="注册" width="400px">
+            <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef" label-width="0">
+                <el-form-item prop="username">
+                    <el-input v-model="registerForm.username" placeholder="用户名（3-50位字母数字下划线）"
+                        :prefix-icon="User" size="large" />
+                </el-form-item>
+                <el-form-item prop="password">
+                    <el-input v-model="registerForm.password" type="password"
+                        placeholder="密码（8位以上，含大小写字母和数字）" :prefix-icon="Lock" size="large" show-password />
+                </el-form-item>
+                <el-form-item prop="confirmPassword">
+                    <el-input v-model="registerForm.confirmPassword" type="password" placeholder="确认密码"
+                        :prefix-icon="Lock" size="large" show-password @keyup.enter="doRegister" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="registerVisible = false">取消</el-button>
+                <el-button type="primary" @click="doRegister" :loading="registerLoading">注册</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- ============ 修改密码弹窗 ============ -->
+        <el-dialog v-model="passwordVisible" title="修改密码" width="400px">
+            <el-form :model="passwordForm" :rules="passwordRules" ref="passwordFormRef" label-width="0">
+                <el-form-item prop="old_password">
+                    <el-input v-model="passwordForm.old_password" type="password" placeholder="原密码"
+                        :prefix-icon="Lock" size="large" show-password />
+                </el-form-item>
+                <el-form-item prop="new_password">
+                    <el-input v-model="passwordForm.new_password" type="password"
+                        placeholder="新密码（8位以上，含大小写字母和数字）" :prefix-icon="Lock" size="large" show-password />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="passwordVisible = false">取消</el-button>
+                <el-button type="primary" @click="doChangePassword" :loading="passwordLoading">确认修改</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- ============ 个人中心弹窗 ============ -->
+        <el-dialog v-model="profileVisible" title="个人中心" width="480px">
+            <el-form :model="profileForm" label-width="80px">
+                <el-form-item label="用户名">
+                    <el-input :value="userInfo.username" disabled />
+                </el-form-item>
+                <el-form-item label="头像URL">
+                    <el-input v-model="profileForm.avatar" placeholder="输入头像图片URL（可选）" />
+                </el-form-item>
+                <el-form-item label="个人简介">
+                    <el-input v-model="profileForm.bio" type="textarea" :rows="3" placeholder="介绍一下自己" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="profileVisible = false">取消</el-button>
+                <el-button type="primary" @click="saveProfile" :loading="profileLoading">保存</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- ============ 页脚 ============ -->
+        <el-footer class="app-footer">
+            <p>实习邦 © 2026 · 后端基于 FastAPI + SQLAlchemy + Redis · 爬虫数据来源于高校就业网</p>
+        </el-footer>
+    </div>
+
+    <!-- ============ 依赖：Vue 3 + Element Plus + Axios（全部 CDN） ============ -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/index.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+
+    <!-- 应用脚本 -->
+    <script src="/js/api.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+
+</html>
