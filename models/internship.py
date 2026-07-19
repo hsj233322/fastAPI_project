@@ -26,7 +26,7 @@ class Internship(Base, TimestampMixin):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="岗位自增ID")
-    position_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, comment="原始职位ID（去重）")
+    position_id: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False, comment="原始职位ID（去重）")
     title: Mapped[str] = mapped_column(String(255), nullable=False, comment="岗位名称")
     company_name: Mapped[str] = mapped_column(String(255), nullable=False, comment="单位名称")
     province: Mapped[str] = mapped_column(String(50), nullable=False, comment="省份")

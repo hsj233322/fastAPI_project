@@ -9,9 +9,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.edge.service import Service as EdgeService
 
 # ---------- 基本配置 ----------
-USERNAME = "16638415737"      # 请替换成真实账号
-PASSWORD = "Lzh09073514."            # 请替换成真实密码
-MAX_PAGES = None                  # 爬取前 10 页，你可以根据需要修改
+USERNAME = "16638415737" 
+PASSWORD = "Lzh09073514." 
+MAX_PAGES = None                  # None 表示爬取所有页
 DELAY = 5                       # 每次翻页间隔秒数，避免请求过快
 
 # ---------- 接口和请求头 ----------
@@ -37,12 +37,12 @@ HEADERS = {
 }
 
 # ---------- 自动登录获取 Cookie ----------
-def login_and_get_cookies(username, password):
+def login_and_get_cookies(username: str, password: str):
     """
     用 Selenium 模拟登录，返回带登录态 Cookie 的 requests.Session
     """
     options = webdriver.EdgeOptions()
-    # 第一次测试时建议保持有头模式，确保能看到登录过程
+    # 无头模式，不打开浏览器窗口
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
@@ -70,9 +70,9 @@ def login_and_get_cookies(username, password):
         login_btn = driver.find_element(By.CSS_SELECTOR, "input.btn_login[type='submit']")
         login_btn.click()
 
-        # 等待登录成功标志（这里等页面出现“退出”链接，若没有请根据实际情况修改）
+        # 等待登录成功标志
         try:
-            wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(text(),'退出')]")))
+            _ = wait.until(EC.presence_of_element_located((By.XPATH, "//a[contains(text(),'退出')]")))
         except:
             # 如果页面上没有“退出”，可以等 URL 变化或直接等待几秒
             time.sleep(3)
@@ -87,18 +87,18 @@ def login_and_get_cookies(username, password):
         session.headers.update(HEADERS)
 
         # 先访问初始页面，让 Session 激活一些基础 Cookie
-        session.get(INIT_URL, timeout=15)
+        _ = session.get(INIT_URL, timeout=15)
 
         # 将 Selenium 的 Cookie 写入 Session
         for cookie in selenium_cookies:
-            session.cookies.set(
+            _ = session.cookies.set(
                 cookie['name'],
                 cookie['value'],
                 domain=cookie.get('domain', ''),
                 path=cookie.get('path', '/')
             )
 
-        # 重新设置 XSRF Token（如果有）
+        # 重新设置 XSRF Token
         xsrf_token = session.cookies.get("XSRF-CCKTOKEN")
         if xsrf_token:
             session.headers["X-XSRF-TOKEN"] = xsrf_token
