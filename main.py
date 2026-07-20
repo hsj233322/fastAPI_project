@@ -12,7 +12,7 @@ from config.redis_config import redis_pool
 from dependencies import start_background_tasks, stop_background_tasks 
 
 # 路由
-from routers import internship, users, collects, historys
+from routers import internship, users, collects, historys, ai_assistant
 
 # 数据库相关
 from models import Base 
@@ -76,6 +76,7 @@ app.include_router(internship.router)
 app.include_router(users.router)
 app.include_router(collects.router)
 app.include_router(historys.router)
+app.include_router(ai_assistant.router)
 
 # 挂载前端静态资源（放在路由之后，避免拦截 /api 请求）
 # 通过访问 http://localhost:8000/ 即可打开前端页面

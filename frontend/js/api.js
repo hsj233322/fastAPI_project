@@ -89,4 +89,6 @@ const api = {
     recordHistory: (internshipId) => api._request('POST', `/history/record/${internshipId}`),
     deleteHistory: (recordId) => api._request('DELETE', `/history/${recordId}`),
     clearHistory: () => api._request('DELETE', '/history/'),
+
+    chatAI: (data) => api._request('POST', '/ai/chat', data),
 };

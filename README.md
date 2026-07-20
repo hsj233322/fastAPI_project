@@ -14,7 +14,7 @@
 ## **项目结构**
 
 ```
-job_api/
+job-api/
 │
 ├── config/                  # 配置层
 │   ├── __init__.py
@@ -40,7 +40,8 @@ job_api/
 │   ├── internship.py        # /api/internship — 实习岗位分类、列表、详情、相关推荐
 │   ├── users.py             # /api/user — 注册、登录、用户信息、修改个人资料、修改密码
 │   ├── collects.py          # /api/collects — 收藏 / 取消收藏、列表、清空
-│   └── historys.py          # /api/history — 添加、获取历史记录、删除单/多条、清空
+│   ├── historys.py          # /api/history — 添加、获取历史记录、删除单/多条、清空
+│   └── ai_assistant.py      # /api/ai — AI助手聊天接口
 │
 ├── crud/                    # 数据操作层（数据库 CRUD 封装）
 │   ├── __init__.py
@@ -51,8 +52,9 @@ job_api/
 │
 ├── services/                # 业务逻辑与缓存层
 │   ├── __init__.py
-│   └── cache_service.py     # 重写 redis 类，添加自增方法用于计数
-│   └── view_counter_service.py 
+│   ├── cache_service.py     # 重写 redis 类，添加自增方法用于计数
+│   ├── view_counter_service.py 
+│   └── deepseek_service.py  # DeepSeek API 封装，含岗位数据注入和关键词提取
 │
 ├── utils/                   # 工具模块
 │   ├── __init__.py
@@ -60,10 +62,15 @@ job_api/
 │   └── security.py          # 密码加密与验证（bcrypt）
 │
 ├── main.py                  # 应用入口
+├── dependencies.py          # 依赖注入与后台任务管理
+├── fetch_job.py             # 岗位数据爬取脚本
+├── import_data.py           # 数据导入脚本
 ├── requirements.txt         # 项目依赖
+├── pyproject.toml           # 项目配置
 ├── docker-compose.yml
 ├── Dockerfile
-└── .env
+├── .env
+└── .gitignore
 ```
 
 ## 运行项目
@@ -98,8 +105,8 @@ job_api/
 |------|------|------|:------:|
 | POST | `/api/user/register` | 用户注册 | 否 |
 | POST | `/api/user/login` | 用户登录 | 否 |
-| GET | `/api/user/info` | 获取当前用户信息 | 是 |
-| PUT | `/api/user/update` | 修改用户信息 | 是 |
+| GET | `/api/user/profile` | 获取当前用户信息 | 是 |
+| PATCH | `/api/user/profile` | 修改用户信息 | 是 |
 | PUT | `/api/user/password` | 修改密码 | 是 |
 
 ### 收藏模块 `/api/collects`
@@ -118,6 +125,37 @@ job_api/
 | GET | `/api/history/list` | 获取历史列表 | 是 |
 | DELETE | `/api/history/{record_id}` | 删除单条历史 | 是 |
 | DELETE | `/api/history/` | 清空全部历史 | 是 |
+
+### AI助手模块 `/api/ai`
+
+| 方法 | 路径 | 说明 | 是否需要登录 |
+|------|------|------|:------:|
+| POST | `/api/ai/chat` | 与AI助手聊天 | 是 |
+
+**聊天请求参数：**
+```json
+{
+  "message": "北京有哪些开发岗位？",
+  "conversation_history": [
+    {"role": "user", "content": "你好"},
+    {"role": "assistant", "content": "你好！我是实习帮助手..."}
+  ]
+}
+```
+
+**聊天响应：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "reply": "根据你的需求，我为你推荐以下北京地区的开发岗位：...",
+    "related_jobs": [
+      {"id": 1, "title": "前端开发实习生", "company_name": "...", "salary_min": 8, "salary_max": 15, "province": "北京", "education": "本科"}
+    ]
+  }
+}
+```
 
 ### 认证方式
 
@@ -145,9 +183,9 @@ Token 在注册或登录成功后返回，有效期 7 天。
 
 ```json
 {
-  "list": [],
+  "items": [],
   "total": 100,
-  "hasMore": true
+  "has_more": true
 }
 ```
 
@@ -169,7 +207,7 @@ Token 在注册或登录成功后返回，有效期 7 天。
 | `internship_category` | 实习岗位分类 |
 | `internship` | 实习岗位（标题、公司、薪资、学历要求等） |
 | `internship_collect` | 收藏记录（用户 + 岗位唯一约束） |
-| `view_history` | 浏览历史（重复浏览更新时间） |
+| `internship_view_history` | 浏览历史（重复浏览更新时间） |
 
 数据库表由 SQLAlchemy ORM 模型自动创建，启动时会检查并创建缺失的表。
 

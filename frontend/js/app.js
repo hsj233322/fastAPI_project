@@ -130,6 +130,17 @@ const app = createApp({
         const historyList = ref([]);
         const historyLoading = ref(false);
 
+        // ============ AI助手 ============
+        const aiDrawerVisible = ref(false);
+        const aiMessages = ref([{
+            role: 'assistant',
+            content: '你好！我是实习帮助手，有什么可以帮你的吗？比如搜索岗位、了解平台功能或求职建议。',
+            relatedJobs: []
+        }]);
+        const aiInput = ref('');
+        const aiLoading = ref(false);
+        const aiMessagesRef = ref(null);
+
         // ============ 工具函数 ============
         function parseTags(tagsStr) {
             if (!tagsStr) return [];
@@ -434,6 +445,59 @@ const app = createApp({
             loadList();
         }
 
+        // ============ AI助手 ============
+        function openAiDrawer() {
+            aiDrawerVisible.value = true;
+            nextTick(() => {
+                if (aiMessagesRef.value) {
+                    aiMessagesRef.value.scrollTop = aiMessagesRef.value.scrollHeight;
+                }
+            });
+        }
+
+        async function sendAiMessage() {
+            const message = aiInput.value.trim();
+            if (!message || aiLoading.value) return;
+
+            aiMessages.value.push({ role: 'user', content: message, relatedJobs: [] });
+            aiInput.value = '';
+            aiLoading.value = true;
+
+            nextTick(() => {
+                if (aiMessagesRef.value) {
+                    aiMessagesRef.value.scrollTop = aiMessagesRef.value.scrollHeight;
+                }
+            });
+
+            try {
+                const rawHistory = aiMessages.value.slice(0, -1).map(msg => ({
+                    role: msg.role,
+                    content: msg.content
+                }));
+                const history = rawHistory.slice(-6);
+
+                const res = await api.chatAI({
+                    message: message,
+                    conversation_history: history
+                });
+
+                aiMessages.value.push({
+                    role: 'assistant',
+                    content: res.data.reply,
+                    relatedJobs: res.data.related_jobs || []
+                });
+            } catch (e) {
+                console.error('AI聊天失败', e);
+            } finally {
+                aiLoading.value = false;
+                nextTick(() => {
+                    if (aiMessagesRef.value) {
+                        aiMessagesRef.value.scrollTop = aiMessagesRef.value.scrollHeight;
+                    }
+                });
+            }
+        }
+
         // ============ 监听 token 失效 ============
         window.addEventListener('auth-expired', () => {
             isLoggedIn.value = false;
@@ -459,9 +523,12 @@ const app = createApp({
             profileVisible, profileLoading, profileForm,
             collectList, collectLoading, collectedIds,
             historyList, historyLoading,
+            aiDrawerVisible, aiMessages, aiInput, aiLoading, aiMessagesRef,
             // Element Plus 图标
             User: ElementPlusIconsVue.User,
             Lock: ElementPlusIconsVue.Lock,
+            Service: ElementPlusIconsVue.Service,
+            Loading: ElementPlusIconsVue.Loading,
             // 方法
             parseTags, formatTime,
             loadList, setCategory, openDetail,
@@ -471,6 +538,7 @@ const app = createApp({
             showRegisterDialog, doRegister,
             doChangePassword, saveProfile,
             handleUserCommand, handleMenuSelect, goHome,
+            openAiDrawer, sendAiMessage,
         };
     },
 });

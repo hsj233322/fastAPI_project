@@ -329,6 +329,63 @@
         <el-footer class="app-footer">
             <p>实习邦 © 2026 · 后端基于 FastAPI + SQLAlchemy + Redis · 爬虫数据来源于高校就业网</p>
         </el-footer>
+
+        <!-- ============ AI助手浮动按钮 ============ -->
+        <div class="ai-float-btn" @click="openAiDrawer" v-show="isLoggedIn">
+            <el-icon :size="24" color="#fff"><Service /></el-icon>
+            <span class="ai-btn-text">AI助手</span>
+        </div>
+
+        <!-- ============ AI助手聊天面板 ============ -->
+        <el-drawer v-model="aiDrawerVisible" direction="rtl" :size="420" title="实习帮助手">
+            <div class="ai-chat-container">
+                <div class="ai-chat-messages" ref="aiMessagesRef">
+                    <div v-for="(msg, idx) in aiMessages" :key="idx"
+                        :class="['ai-message-item', msg.role]">
+                        <div class="ai-avatar">
+                            <el-icon v-if="msg.role === 'assistant'" :size="24" color="#409eff">
+                                <Service />
+                            </el-icon>
+                            <el-icon v-else :size="24" color="#67c23a">
+                                <User />
+                            </el-icon>
+                        </div>
+                        <div class="ai-message-content">
+                            <p>{{ msg.content }}</p>
+                            <div v-if="msg.relatedJobs && msg.relatedJobs.length" class="ai-related-jobs">
+                                <div class="ai-related-title">相关岗位推荐：</div>
+                                <el-card v-for="job in msg.relatedJobs.slice(0, 3)" :key="job.id"
+                                    class="ai-related-card" @click="openDetail(job.id)">
+                                    <div class="ai-job-title">{{ job.title }}</div>
+                                    <div class="ai-job-meta">
+                                        <span>{{ job.company_name }}</span>
+                                        <span>{{ job.province }}</span>
+                                        <span v-if="job.salary_min && job.salary_max">
+                                            {{ job.salary_min }}-{{ job.salary_max }}k
+                                        </span>
+                                    </div>
+                                </el-card>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="aiLoading" class="ai-loading">
+                        <el-icon class="is-loading"><Loading /></el-icon>
+                        <span>正在思考中...</span>
+                    </div>
+                </div>
+
+                <div class="ai-chat-input">
+                    <el-input v-model="aiInput" placeholder="输入你的问题，如'北京有哪些开发岗位？'"
+                        :disabled="aiLoading" @keyup.enter="sendAiMessage">
+                        <template #append>
+                            <el-button type="primary" :loading="aiLoading" @click="sendAiMessage">
+                                发送
+                            </el-button>
+                        </template>
+                    </el-input>
+                </div>
+            </div>
+        </el-drawer>
     </div>
 
     <!-- ============ 依赖：Vue 3 + Element Plus + Axios（全部 CDN） ============ -->

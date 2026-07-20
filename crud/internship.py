@@ -117,3 +117,21 @@ async def get_related_internships(
     stmt = stmt.order_by(Internship.views.desc(), Internship.publish_time.desc()).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+async def search_internships_by_keyword(
+    db: AsyncSession,
+    keyword: str,
+    limit: int = 5,
+):
+    """根据关键词搜索岗位（标题、公司、省份模糊匹配）"""
+    stmt = select(Internship).where(
+        or_(
+            Internship.title.like(f"%{keyword}%"),
+            Internship.company_name.like(f"%{keyword}%"),
+            Internship.province.like(f"%{keyword}%"),
+        )
+    ).order_by(Internship.publish_time.desc()).limit(limit)
+
+    result = await db.execute(stmt)
+    return result.scalars().all()
