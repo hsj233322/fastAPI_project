@@ -1,5 +1,5 @@
 # routers/users.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from crud import users
 from sqlalchemy.ext.asyncio import AsyncSession
 from config.db_config import get_db
@@ -10,13 +10,24 @@ from schemas import ApiResponse
 from models.users import User
 from utils.auth import get_current_user
 from typing import Annotated
+from redis.asyncio import Redis
+from config.redis_config import get_redis
+from utils.rate_limit import login_limiter, register_limiter
 
 # 创建 APIRuter 实例
 router = APIRouter(prefix='/api/user',tags=["个人中心"])
 
 """用户注册"""
 @router.post("/register", response_model=ApiResponse[None])
-async def register(user_data: UserRegisterRequest, db: Annotated[AsyncSession, Depends(get_db)])-> ApiResponse[None]:
+async def register(
+    request: Request,
+    user_data: UserRegisterRequest,
+    redis: Annotated[Redis, Depends(get_redis)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+)-> ApiResponse[None]:
+    # 注册限流：基于 IP 限制，60秒内最多3次
+    await register_limiter.check_ip(request, redis)
+    
     # 查数据库，看用户名是否存在
     db_user = await users.get_user_by_username(db, user_data.username)
     if db_user:
@@ -29,7 +40,15 @@ async def register(user_data: UserRegisterRequest, db: Annotated[AsyncSession, D
     
 """用户登录"""
 @router.post("/login", response_model=ApiResponse[LoginData])
-async def login(user_data: UserLoginRequest, db: Annotated[AsyncSession, Depends(get_db)]): 
+async def login(
+    request: Request,
+    user_data: UserLoginRequest,
+    redis: Annotated[Redis, Depends(get_redis)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+): 
+    # 登录限流：基于 IP + 用户名双重限制，30秒内最多5次
+    await login_limiter.check(request, redis, identifier=user_data.username)
+    
     # 查用户
     db_user = await users.get_user_by_username(db, user_data.username)
     if not db_user or not verify_password(user_data.password, db_user.password):

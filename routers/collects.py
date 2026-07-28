@@ -1,6 +1,7 @@
 # routers/collects.py
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from typing import Annotated
 
 from config.db_config import get_db
@@ -48,9 +49,15 @@ async def toggle_collect(
         await db.commit()
         return ApiResponse(code=200, message="取消收藏成功")
     else:
-        # 未收藏 → 添加
-        db.add(Collect(user_id=user.id, internship_id=internship_id))
-        await db.commit()
+        # 未收藏 → 添加（带并发保护的复合唯一约束）
+        try:
+            db.add(Collect(user_id=user.id, internship_id=internship_id))
+            await db.commit()
+        except IntegrityError:
+            # 并发场景下的重复收藏，直接返回成功
+            # （复合唯一约束已生效，不会产生重复数据）
+            await db.rollback()
+            return ApiResponse(code=200, message="收藏成功")
         return ApiResponse(code=200, message="收藏成功")
 
 
