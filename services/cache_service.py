@@ -1,7 +1,7 @@
 # services/cache_service.py
 import json
 import logging
-from typing import Any, Type, TypeVar
+from typing import Any, TypeVar
 from redis.asyncio import Redis
 from pydantic import BaseModel
 

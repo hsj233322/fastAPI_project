@@ -1,7 +1,6 @@
 import os
 import logging
 import re
-from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 
@@ -20,7 +19,7 @@ class DeepSeekService:
         if not self.api_key:
             logger.warning("DEEPSEEK_API_KEY not configured, AI assistant will be disabled")
 
-    async def build_system_prompt(self, db: AsyncSession, user_message: str) -> tuple[str, List[Dict]]:
+    async def build_system_prompt(self, db: AsyncSession, user_message: str) -> tuple[str, list[dict[str, str]]]:
         keywords = self._extract_keywords(user_message)
         related_jobs = []
 
@@ -66,7 +65,7 @@ class DeepSeekService:
 
         return system_prompt, related_jobs
 
-    def _extract_keywords(self, text: str) -> List[str]:
+    def _extract_keywords(self, text: str) -> list[str]:
         province_keywords = [
             "北京", "上海", "广东", "江苏", "浙江", "四川", "湖北", "湖南", "陕西",
             "山东", "河南", "福建", "安徽", "重庆", "天津", "河北", "辽宁", "黑龙江",
@@ -103,8 +102,8 @@ class DeepSeekService:
     async def call_deepseek_api(
         self,
         system_prompt: str,
-        messages: List[Dict[str, str]],
-    ) -> Optional[str]:
+        messages: list[dict[str, str]],
+    ) -> str | None:
         if not self.api_key:
             logger.error("DeepSeek API key not configured")
             return None
@@ -147,8 +146,8 @@ class DeepSeekService:
         self,
         db: AsyncSession,
         message: str,
-        conversation_history: Optional[List[ChatMessage]] = None,
-    ) -> tuple[str, List[RelatedJob]]:
+        conversation_history: list[ChatMessage] | None = None,
+    ) -> tuple[str, list[RelatedJob]]:
         system_prompt, related_jobs = await self.build_system_prompt(db, message)
 
         messages = []

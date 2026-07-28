@@ -6,11 +6,8 @@
 - 基于用户/用户名的限流（适用于需要登录或注册的接口）
 - 可配置的时间窗口和请求次数
 """
-from fastapi import Request, HTTPException, status, Depends
-from typing import Callable, Optional
+from fastapi import Request, HTTPException, status
 from redis.asyncio import Redis
-from config.redis_config import get_redis
-
 
 class RateLimiter:
     """
