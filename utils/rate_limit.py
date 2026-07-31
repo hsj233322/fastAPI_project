@@ -10,23 +10,6 @@ from fastapi import Request, HTTPException, status
 from redis.asyncio import Redis
 
 class RateLimiter:
-    """
-    基于 Redis 的频率限制器。
-    
-    使用方式：
-        limiter = RateLimiter(key_prefix="login", max_requests=5, window_seconds=30)
-        
-        # 作为 FastAPI 依赖
-        @router.post("/login")
-        async def login(
-            request: Request,
-            redis: Annotated[Redis, Depends(get_redis)],
-            ...
-        ):
-            await limiter.check_ip(request, redis)
-            # 或
-            await limiter.check(request, redis, identifier=username)
-    """
 
     def __init__(self, key_prefix: str, max_requests: int, window_seconds: int):
         self.key_prefix = key_prefix
@@ -71,7 +54,8 @@ class RateLimiter:
         """
         # 尝试原子设置初始值（仅首次请求生效）
         # SET key 1 EX window_seconds NX
-        # NX: 仅当 key 不存在时设置
+        # NX: 仅当 key 不存在时设置，返回 True
+        # EX: 过期时间，单位秒
         is_first = await redis.set(key, 1, ex=self.window_seconds, nx=True)
         
         if is_first:

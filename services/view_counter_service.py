@@ -31,6 +31,7 @@ class ViewCounterService:
     async def record_view(self, internship_id: int) -> None:
         # CacheService.incr 内部会调用 make_key 加前缀
         await self._cache.incr(self._raw_key(internship_id))
+        
     async def start_flush_loop(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
         self._running = True

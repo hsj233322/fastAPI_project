@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 class DeepSeekService:
     def __init__(self):
         self.api_key = os.getenv("DEEPSEEK_API_KEY")
-        self.base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
-        self.model = "deepseek-chat"
+        self.base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+        self.model = "deepseek-v4-flash"
 
         if not self.api_key:
             logger.warning("DEEPSEEK_API_KEY not configured, AI assistant will be disabled")

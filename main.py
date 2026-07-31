@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,7 +19,7 @@ from routers import internship, users, collects, historys, ai_assistant
 
 # 数据库相关
 from models import Base 
-from config.db_config import async_engine, get_db 
+from config.db_config import async_engine
 
 """注册模型，触发建表"""
 from models.collects import Collect     
@@ -40,7 +43,7 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     
     # 2. 启动后台任务
-    # 3. 传入 async_session_factory
+    # 3. 传入数据库会话工厂（用来创建新的数据库会话）
     await start_background_tasks(async_session_factory)
     
     print("Application startup complete")
@@ -48,7 +51,7 @@ async def lifespan(app: FastAPI):
     yield  # 应用运行期间
     
     # --- 关闭阶段 ---
-    # 核心原则：先停业务任务（触发最后一次刷库），再关底层连接池
+    # 先停业务任务（触发最后一次刷库），再关底层连接池
     await stop_background_tasks()       # 1. 停止刷库任务并刷入剩余数据
     await redis_pool.aclose()           # 2. 关闭 Redis 连接池
     await async_engine.dispose()        # 3. 释放数据库引擎
@@ -58,7 +61,8 @@ async def lifespan(app: FastAPI):
 # 4. 在创建 app 之前定义 session_factory
 async_session_factory = async_sessionmaker(
     async_engine, 
-    expire_on_commit=False
+    expire_on_commit=False  # 禁用自动过期，确保会话在请求完成后手动关闭
+    # 这样可以避免数据库连接池中的连接被重复使用，提高性能
 )
 
 app = FastAPI(lifespan=lifespan)

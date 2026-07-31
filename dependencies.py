@@ -8,7 +8,8 @@ from config.redis_config import get_redis_client,  get_redis
 from services.cache_service import CacheService
 from services.view_counter_service import ViewCounterService
 
-# 全局单例
+# 全局单例,防止重复创建 ViewCounterService 实例
+# 这样可以确保在 lifespan 中和路由中使用的是同一个实例，避免重复刷库操作
 _view_counter: ViewCounterService | None = None
 
 def get_view_counter_service() -> ViewCounterService:

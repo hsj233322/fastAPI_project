@@ -20,7 +20,6 @@ from dependencies import get_view_counter
 
 router = APIRouter(prefix="/api/internship", tags=["实习岗位"])
 
-
 @router.get("/categories", response_model=ApiResponse[list[CategoryResponse]])
 async def get_categories(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -38,7 +37,10 @@ async def get_categories(
 
     categories_pydantic = [CategoryResponse.model_validate(cat) for cat in categories_orm]
 
-    await cache.set(cache_key, categories_pydantic, ttl=86400)
+    if categories_pydantic:
+        _ =await cache.set(cache_key, categories_pydantic, ttl=86400)   # 有数据，24小时
+    else:
+        _ =await cache.set(cache_key, [], ttl=60)   # 空数据缓存60秒，防止穿透
 
     return ApiResponse(data=categories_pydantic)
 

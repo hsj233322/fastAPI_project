@@ -1,3 +1,4 @@
+# AI助手路由，处理AI相关请求
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated

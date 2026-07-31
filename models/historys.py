@@ -1,7 +1,7 @@
 # models/historys.py
 from sqlalchemy import ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
-from datetime import datetime
+from datetime import datetime, timezone
 from models import Base
 from sqlalchemy import Integer
 from models.users import User
@@ -23,7 +23,7 @@ class ViewHistory(Base):
 
     view_time: Mapped[datetime] = mapped_column(
         DateTime, 
-        default=lambda: datetime.now(),     # 第一次插入时，记录当前时间
-        onupdate=lambda: datetime.now(),    # 如果这条记录被修改了，自动把时间更新为当前时间
-        comment="最后浏览时间"
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        comment="最后浏览时间(UTC)"
     )

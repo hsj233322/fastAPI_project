@@ -150,7 +150,10 @@ const app = createApp({
 
         function formatTime(timeStr) {
             if (!timeStr) return '';
-            const d = new Date(timeStr);
+            // 后端返回 UTC 时间（无时区后缀），加 'Z' 明确为 UTC 解析
+            // 若已有时区标识则直接解析
+            const hasTz = /[Z]|[+-]\d{2}:\d{2}$/.test(timeStr);
+            const d = new Date(hasTz ? timeStr : timeStr + 'Z');
             if (isNaN(d.getTime())) return timeStr;
             const now = new Date();
             const diff = (now - d) / 1000;
@@ -227,11 +230,14 @@ const app = createApp({
             try {
                 const res = await api.toggleCollect(internshipId);
                 ElMessage.success(res.message);
-                // 更新收藏状态
-                if (res.message.includes('收藏成功')) {
-                    collectedIds.value.add(internshipId);
-                } else if (res.message.includes('取消收藏成功')) {
-                    collectedIds.value.delete(internshipId);
+                // 更新收藏状态（整体替换 Set 以强制响应式更新）
+                const newSet = new Set(collectedIds.value);
+                if (res.message === '取消收藏成功') {
+                    newSet.delete(internshipId);
+                    collectedIds.value = newSet;
+                } else if (res.message === '收藏成功') {
+                    newSet.add(internshipId);
+                    collectedIds.value = newSet;
                 }
                 // 如果当前在收藏页，刷新列表
                 if (activeMenu.value === 'collects') loadCollects();
@@ -246,11 +252,12 @@ const app = createApp({
             try {
                 const res = await api.getCollects();
                 collectList.value = res.data || [];
-                // 更新收藏状态集合
-                collectedIds.value.clear();
+                // 整体替换 Set 以确保响应式更新
+                const newSet = new Set();
                 collectList.value.forEach(item => {
-                    collectedIds.value.add(item.internship_id);
+                    newSet.add(item.internship_id);
                 });
+                collectedIds.value = newSet;
             } catch (e) {
                 console.error('加载收藏失败', e);
             } finally {
