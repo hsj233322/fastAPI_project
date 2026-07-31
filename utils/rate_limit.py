@@ -76,16 +76,16 @@ class RateLimiter:
 
 # ==================== 预设的限流器 ====================
 
-# 登录限流：IP 维度 30秒5次，IP+用户名维度 30秒3次
+# 登录限流：IP 维度 30秒5次，IP+用户名维度 30秒5次
 login_limiter = RateLimiter(
     key_prefix="login",
     max_requests=5,
     window_seconds=30,
 )
 
-# 注册限流：仅 IP 维度 60秒3次
+# 注册限流：仅 IP 维度 30秒5次
 register_limiter = RateLimiter(
     key_prefix="register",
-    max_requests=3,
-    window_seconds=60,
+    max_requests=5,
+    window_seconds=30,
 )
