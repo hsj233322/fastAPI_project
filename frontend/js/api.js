@@ -37,31 +37,49 @@ const api = {
             }
             if (!response.ok) {
                 if (response.status === 401) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('userInfo');
-                    ElMessage.warning('登录已过期，请重新登录');
-                    window.dispatchEvent(new CustomEvent('auth-expired'));
-                    throw new Error('登录已过期');
+                    // 判断是否为登录或注册接口
+                    const isAuthRequest = url.includes('/login') || url.includes('/register');
+                    if (!isAuthRequest) {
+                        // 只有非登录接口的 401 才算 token 过期
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('userInfo');
+                        ElMessage.warning('登录已过期，请重新登录');
+                        const err = new Error('登录已过期');
+                        err._shown = true;
+                        throw err;
+                    } else {
+                        // 登录/注册失败，直接显示后端返回的错误信息
+                        ElMessage.error(res.message || '认证失败');
+                        const err = new Error(res.message || '认证失败');
+                        err._shown = true;
+                        throw err;
+                    }
                 }
                 ElMessage.error(res.message || '请求失败');
-                throw new Error(res.message || 'Error');
+                const err1 = new Error(res.message || '请求失败');
+                err1._shown = true;
+                throw err1;
             }
+            
             if (res.code !== undefined && res.code !== 200) {
                 if (res.message && res.message.includes('Token')) {
                     localStorage.removeItem('token');
                     localStorage.removeItem('userInfo');
                     ElMessage.warning('登录已过期，请重新登录');
-                    window.dispatchEvent(new CustomEvent('auth-expired'));
-                    throw new Error('登录已过期');
+                    const err = new Error('登录已过期');
+                    err._shown = true;
+                    throw err;
                 }
                 ElMessage.error(res.message || '请求失败');
-                throw new Error(res.message || 'Error');
+                const err2 = new Error(res.message || '请求失败');
+                err2._shown = true;
+                throw err2;
             }
             return res;
         } catch (e) {
             if (e.message === 'Failed to fetch') {
                 ElMessage.error('网络异常，请稍后重试');
-            } else if (!e.message.includes('请求失败') && !e.message.includes('登录已过期')) {
+            } else if (!e._shown) {
                 ElMessage.error(e.message || '网络异常');
             }
             throw e;
