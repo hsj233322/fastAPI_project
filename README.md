@@ -226,13 +226,13 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 
 ### 用户模块 `/api/user`
 
-| 方法    | 路径                   | 说明                              | 是否需要登录 |
-| ----- | -------------------- | ------------------------------- | :----: |
-| POST  | `/api/user/register` | 用户注册（限流：IP 60s/3次）              |    否   |
-| POST  | `/api/user/login`    | 用户登录（限流：IP 30s/5次 + 用户名 30s/3次） |    否   |
-| GET   | `/api/user/profile`  | 获取当前用户信息                        |    是   |
-| PATCH | `/api/user/profile`  | 修改用户信息                          |    是   |
-| PUT   | `/api/user/password` | 修改密码                            |    是   |
+| 方法  | 路径                 | 说明                                          | 是否需要登录 |
+| ----- | -------------------- | --------------------------------------------- | :----------: |
+| POST  | `/api/user/register` | 用户注册（限流：IP 30s/5次）                  |      否      |
+| POST  | `/api/user/login`    | 用户登录（限流：IP 30s/5次 + 用户名 30s/5次） |      否      |
+| GET   | `/api/user/profile`  | 获取当前用户信息                              |      是      |
+| PATCH | `/api/user/profile`  | 修改用户信息                                  |      是      |
+| PUT   | `/api/user/password` | 修改密码                                      |      是      |
 
 ### 收藏模块 `/api/collects`
 

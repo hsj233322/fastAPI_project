@@ -4,7 +4,6 @@ FROM python:3.11-slim
 # 设置工作目录
 WORKDIR /app
 
-# 安装系统依赖（如果你用到了 mysqlclient 等需要编译的库，需要加 gcc，这里用 pymysql 就不需要）
 # 复制依赖文件
 COPY requirements.txt .
 

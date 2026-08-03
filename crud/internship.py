@@ -2,7 +2,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from models.internship import InternshipCategory, Internship
-
+from sqlalchemy import and_
 
 # ---------- 分类 ----------
 async def get_categories(db: AsyncSession):
@@ -119,19 +119,37 @@ async def get_related_internships(
     return result.scalars().all()
 
 
-async def search_internships_by_keyword(
-    db: AsyncSession,
-    keyword: str,
-    limit: int = 5,
-):
-    """根据关键词搜索岗位（标题、公司、省份模糊匹配）"""
-    stmt = select(Internship).where(
-        or_(
-            Internship.title.like(f"%{keyword}%"),
-            Internship.company_name.like(f"%{keyword}%"),
-            Internship.province.like(f"%{keyword}%"),
-        )
-    ).order_by(Internship.publish_time.desc()).limit(limit)
-
-    result = await db.execute(stmt)
-    return result.scalars().all()
+async def search_internships(
+        db: AsyncSession,
+        keyword: str | None = None,
+        location: str | None = None,
+        education: str | None = None,
+        limit: int = 8,
+    ) -> list["Internship"]:
+        """多条件筛选岗位，支持关键词、地点、学历"""
+        conditions = []
+        
+        if keyword:
+            conditions.append(
+                or_(
+                    Internship.title.like(f"%{keyword}%"),
+                    Internship.company_name.like(f"%{keyword}%"),
+                    Internship.province.like(f"%{keyword}%"),
+                    Internship.description.like(f"%{keyword}%"), 
+                )
+            )
+        
+        if location:
+            conditions.append(Internship.province.like(f"%{location}%"))
+        
+        if education:
+            conditions.append(Internship.education == education)
+        
+        stmt = select(Internship)
+        if conditions:
+            stmt = stmt.where(and_(*conditions))
+        
+        stmt = stmt.order_by(Internship.publish_time.desc()).limit(limit)
+        
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
