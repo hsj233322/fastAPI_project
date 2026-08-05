@@ -1,9 +1,10 @@
 import os
 import json
 import logging
-from typing import Any, List, Dict, Optional
+from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
+from typing import Annotated
 
 from schemas.ai_assistant import ChatMessage, RelatedJob
 from crud.internship import search_internships 
@@ -15,7 +16,7 @@ class DeepSeekService:
     def __init__(self):
         self.api_key = os.getenv("DEEPSEEK_API_KEY")
         self.base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-        self.model = "deepseek-v4-flash"  # 确认你用的是 deepseek-chat 还是这个
+        self.model = "deepseek-v4-flash" 
 
         if not self.api_key:
             logger.warning("DEEPSEEK_API_KEY not configured")
@@ -30,7 +31,7 @@ class DeepSeekService:
             "始终使用中文，回答简洁专业。"
         )
 
-    def _get_tools(self) -> List[Dict[str, Any]]:
+    def _get_tools(self) -> Annotated[list[dict[str, Any]], "需要传递的工具定义（符合 OpenAI 函数调用格式）"]:
         return [{
             "type": "function",
             "function": {
@@ -59,9 +60,9 @@ class DeepSeekService:
 
     async def _call_deepseek_api(
         self,
-        messages: List[Dict[str, str]],
-        tools: Optional[List[Dict[str, Any]]] = None
-    ) -> Optional[Dict[str, Any]]:
+        messages: Annotated[list[dict[str, str]], "对话消息历史，格式为 [{\"role\": \"user\", \"content\": \"...\"}]"],
+        tools: Annotated[list[dict[str, Any]] | None, "需要传递的工具定义（可选），符合 OpenAI 函数调用格式"] = None
+    ) -> Annotated[dict[str, Any] | None, "DeepSeek API 响应"]:
         if not self.api_key:
             logger.error("DeepSeek API key not configured")
             return None
@@ -104,9 +105,9 @@ class DeepSeekService:
         self,
         db: AsyncSession,
         message: str,
-        conversation_history: List[ChatMessage] | None = None,
-    ) -> tuple[str, List[RelatedJob]]:
-        messages: List[Dict[str, str]] = []
+        conversation_history: Annotated[list[ChatMessage] | None, "对话消息历史"] = None,
+    ) -> tuple[str, list[RelatedJob]]:
+        messages: Annotated[list[dict[str, str]], "对话消息历史，格式为 [{\"role\": \"user\", \"content\": \"...\"}]"] = []
         if conversation_history:
             for msg in conversation_history:
                 messages.append({"role": msg.role, "content": msg.content})
