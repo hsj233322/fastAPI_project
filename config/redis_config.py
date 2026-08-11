@@ -1,6 +1,5 @@
 # config/redis_config.py
 import redis.asyncio as aioredis
-from typing import AsyncGenerator
 import os
 
 # Redis 连接 URL (优先读取环境变量，如果没有则使用默认的本地 localhost)
@@ -18,7 +17,7 @@ def get_redis_client() -> aioredis.Redis:
     return aioredis.Redis(connection_pool=redis_pool)
 
 # 用于 FastAPI 的 Depends() 依赖注入
-async def get_redis() -> AsyncGenerator[aioredis.Redis, None]:
+async def get_redis():
     client = get_redis_client()
     try:
         yield client

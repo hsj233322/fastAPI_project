@@ -31,7 +31,7 @@ class DeepSeekService:
             "始终使用中文，回答简洁专业。"
         )
 
-    def _get_tools(self) -> Annotated[list[dict[str, Any]], "需要传递的工具定义（符合 OpenAI 函数调用格式）"]:
+    def _get_tools(self) -> Annotated[list[dict[str, Any]], "需要传递的工具定义"]:
         return [{
             "type": "function",
             "function": {
@@ -61,7 +61,7 @@ class DeepSeekService:
     async def _call_deepseek_api(
         self,
         messages: Annotated[list[dict[str, str]], "对话消息历史，格式为 [{\"role\": \"user\", \"content\": \"...\"}]"],
-        tools: Annotated[list[dict[str, Any]] | None, "需要传递的工具定义（可选），符合 OpenAI 函数调用格式"] = None
+        tools: Annotated[list[dict[str, Any]] | None, "需要传递的工具定义（可选）"] = None
     ) -> Annotated[dict[str, Any] | None, "DeepSeek API 响应"]:
         if not self.api_key:
             logger.error("DeepSeek API key not configured")
@@ -130,7 +130,7 @@ class DeepSeekService:
             except json.JSONDecodeError:
                 args = {}
 
-            # 执行查询（使用新增的 search_internships 函数）
+            # 执行查询
             jobs = await search_internships(
                 db,
                 keyword=args.get("keyword"),

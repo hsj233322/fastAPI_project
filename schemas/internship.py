@@ -29,7 +29,7 @@ class InternshipListItemResponse(BaseSchema):
 
 
 class PaginatedInternshipResponse(BaseSchema):
-    """分页响应（注意：items 修正了原 item 的拼写）"""
+    """分页响应"""
     items: list[InternshipListItemResponse]
     total: int
     has_more: bool

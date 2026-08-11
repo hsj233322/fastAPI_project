@@ -25,7 +25,7 @@ async def register(
     redis: Annotated[Redis, Depends(get_redis)],
     db: Annotated[AsyncSession, Depends(get_db)],
 )-> ApiResponse[None]:
-    # 注册限流：基于 IP 限制，60秒内最多3次
+    # 注册限流：基于 IP 限制
     await register_limiter.check_ip(request, redis)
     
     # 查数据库，看用户名是否存在
@@ -46,7 +46,7 @@ async def login(
     redis: Annotated[Redis, Depends(get_redis)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ): 
-    # 登录限流：基于 IP + 用户名双重限制，30秒内最多5次
+    # 登录限流：基于 IP + 用户名双重限制
     await login_limiter.check(request, redis, identifier=user_data.username)
     
     # 查用户
