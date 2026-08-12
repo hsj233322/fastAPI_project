@@ -351,7 +351,7 @@
                             </el-icon>
                         </div>
                         <div class="ai-message-content">
-                            <p>{{ msg.content }}</p>
+                            <div v-html="renderMarkdown(msg.content)"></div>
                             <div v-if="msg.relatedJobs && msg.relatedJobs.length" class="ai-related-jobs">
                                 <div class="ai-related-title">相关岗位推荐：</div>
                                 <el-card v-for="job in msg.relatedJobs.slice(0, 3)" :key="job.id"
@@ -393,10 +393,13 @@
     <script src="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/index.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@element-plus/icons-vue@2.3.1/dist/index.iife.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+    <!-- Markdown 渲染 + XSS 净化 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.11/dist/purify.min.js"></script>
 
-    <!-- 应用脚本（v=2 缓存破坏参数，更新代码时递增版本号） -->
-    <script src="/js/api.js?v=2"></script>
-    <script src="/js/app.js?v=2"></script>
+    <!-- 应用脚本（v=3 缓存破坏参数，更新代码时递增版本号） -->
+    <script src="/js/api.js?v=3"></script>
+    <script src="/js/app.js?v=3"></script>
 </body>
 
 </html>

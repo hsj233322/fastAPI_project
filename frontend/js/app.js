@@ -164,6 +164,34 @@ const app = createApp({
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
 
+        // ============ Markdown 渲染（AI 助手回复） ============
+        // AI 回复为 markdown 文本，通过 v-html 注入 DOM 前必须：
+        // 1) 用 marked 解析为 HTML；2) 用 DOMPurify 净化，防止 XSS
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderMarkdown(text) {
+            if (!text) return '';
+            // marked/DOMPurify 未加载完成时降级为转义纯文本，避免裸 HTML 注入
+            if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+                return escapeHtml(text).replace(/\n/g, '<br>');
+            }
+            try {
+                // breaks: true 把单个换行渲染为 <br>，贴合聊天交互的视觉习惯
+                const rawHtml = marked.parse(text, { breaks: true, gfm: true });
+                return DOMPurify.sanitize(rawHtml);
+            } catch (e) {
+                console.error('Markdown 渲染失败', e);
+                return escapeHtml(text).replace(/\n/g, '<br>');
+            }
+        }
+
         // ============ 岗位列表相关 ============
         async function loadCategories() {
             try {
@@ -545,7 +573,7 @@ const app = createApp({
             showRegisterDialog, doRegister,
             doChangePassword, saveProfile,
             handleUserCommand, handleMenuSelect, goHome,
-            openAiDrawer, sendAiMessage,
+            openAiDrawer, sendAiMessage, renderMarkdown,
         };
     },
 });

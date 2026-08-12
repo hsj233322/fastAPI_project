@@ -4,3 +4,5 @@ __pycache__/
 .env
 logs/
 *.log
+.pytest_cache/
+*.db

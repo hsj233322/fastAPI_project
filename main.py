@@ -88,6 +88,9 @@ _frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
 if os.path.isdir(_frontend_dir):
     app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 
 """--------异常处理--------"""
 logger.add(
