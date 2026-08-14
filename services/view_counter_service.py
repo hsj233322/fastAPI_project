@@ -25,23 +25,23 @@ class ViewCounterService:
         """返回不带前缀的 scan pattern"""
         return f"{self.KEY_BASE}:*"
 
-    # 获取某个岗位的未刷盘浏览量
+    # 获取某个岗位尚未刷库的浏览量
     async def get_pending_views(self, internship_id: int) -> int:
         return await self._cache.get_int(self._raw_key(internship_id)) or 0
 
-    # 记录某个岗位的浏览量增加
+    # 记录一次浏览，Redis 原子自增
     async def record_view(self, internship_id: int) -> None:
         # CacheService.incr 内部会调用 make_key 加前缀
         await self._cache.incr(self._raw_key(internship_id))
         
-    # 开始刷盘浏览量到数据库的循环
+    # 启动后台刷库循环
     async def start_flush_loop(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
         self._running = True
         self._task = asyncio.create_task(self._flush_loop())
         logger.info(f"ViewCounter flush loop started (interval={self.FLUSH_INTERVAL}s)")
 
-    # 刷盘浏览量到数据库的循环
+    # 后台刷库循环
     async def _flush_loop(self) -> None:
         while self._running:
             try:
@@ -73,9 +73,9 @@ class ViewCounterService:
 
         while True:
             cursor, keys = await redis.scan(cursor, match=full_pattern, count=100)
+            if cursor == 0:
+                break
             if not keys:
-                if cursor == 0:
-                    break
                 continue
 
             # ---------- 1. 从 Redis 取出数据并删除键 ----------
@@ -131,7 +131,7 @@ class ViewCounterService:
         else:
             logger.debug("ViewCounter flush: no pending views found")
 
-    # 停止刷盘浏览量到数据库的循环
+    # 停止刷库循环，并做最后一次刷库
     async def stop(self) -> None:
         logger.info("ViewCounter stopping...")
         self._running = False

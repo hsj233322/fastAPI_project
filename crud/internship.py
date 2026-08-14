@@ -153,3 +153,9 @@ async def search_internships(
         
         result = await db.execute(stmt)
         return list(result.scalars().all())
+
+# ---------- 工具函数 ----------
+async def get_internship_by_id(db: AsyncSession, internship_id: int) -> Internship | None:
+    stmt = select(Internship).where(Internship.id == internship_id)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
