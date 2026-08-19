@@ -12,7 +12,8 @@ from utils.auth import get_current_user
 from typing import Annotated
 from redis.asyncio import Redis
 from config.redis_config import get_redis
-from utils.rate_limit import login_limiter, register_limiter
+from utils.rate_limit import check_rate_limit
+from utils.http import get_client_ip
 
 # 创建 APIRuter 实例
 router = APIRouter(prefix='/api/user',tags=["个人中心"])
@@ -25,8 +26,17 @@ async def register(
     redis: Annotated[Redis, Depends(get_redis)],
     db: Annotated[AsyncSession, Depends(get_db)],
 )-> ApiResponse[None]:
-    # 注册限流：基于 IP 限制
-    await register_limiter.check_ip(request, redis)
+    # 注册限流：基于 IP 限制,每分钟最多5次
+    client_ip = get_client_ip(request)
+    key = f"register:rate:{client_ip}"
+    allowed = await check_rate_limit(redis, key, max_requests=5, window_seconds=60)
+    if not allowed:
+        ttl = await redis.ttl(key)
+        wait_msg = f"{ttl} 秒后再试" if ttl > 0 else "稍后再试"
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"注册请求过于频繁，请{wait_msg}",
+        )
     
     # 查数据库，看用户名是否存在
     db_user = await users.get_user_by_username(db, user_data.username)
@@ -47,7 +57,16 @@ async def login(
     db: Annotated[AsyncSession, Depends(get_db)],
 ): 
     # 登录限流：基于 IP + 用户名双重限制
-    await login_limiter.check(request, redis, identifier=user_data.username)
+    client_ip = get_client_ip(request)
+    key = f"login:rate:{client_ip}:{user_data.username}"  # 加上用户名可防止同一 IP 对大量用户暴力破解
+    allowed = await check_rate_limit(redis, key, max_requests=5, window_seconds=60)
+    if not allowed:
+        ttl = await redis.ttl(key)
+        wait_msg = f"{ttl} 秒后再试" if ttl > 0 else "稍后再试"
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"登录请求过于频繁，请{wait_msg}",
+        )
     
     # 查用户
     db_user = await users.get_user_by_username(db, user_data.username)

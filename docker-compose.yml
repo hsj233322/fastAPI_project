@@ -1,3 +1,4 @@
+# 生产环境配置
 services:
   app:
     build: .
@@ -30,6 +31,10 @@ services:
     restart: always
     ports:
       - "6379:6379"
+    volumes:
+      - ./deploy/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro   # 挂载配置文件（只读）
+      - redis_data:/data                                               # 挂载数据目录（持久化AOF/RDB）
+    command: redis-server /usr/local/etc/redis/redis.conf              # 指定配置文件启动
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -77,3 +82,4 @@ services:
 
 volumes:
   mysql_data:
+  redis_data:

@@ -93,7 +93,7 @@ async def health_check():
     return {"status": "ok"}
 
 """--------异常处理--------"""
-logger.add(
+_ = logger.add(
    "logs/server_error_{time:YYYY-MM-DD}.log",
    rotation="00:00",
    retention="10 days",

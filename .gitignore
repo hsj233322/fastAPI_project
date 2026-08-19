@@ -6,3 +6,4 @@ logs/
 *.log
 .pytest_cache/
 *.db
+docker-compose.override.yml

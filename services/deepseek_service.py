@@ -6,10 +6,11 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 from typing import Annotated
+from pydantic import Field
 
 from schemas.ai_assistant import ChatMessage, RelatedJob
 from crud.internship import search_internships 
-from tools import Tool
+from core.tool import Tool
 from services.tool_functions import search_jobs_func, get_job_detail_func
 from openai import AsyncOpenAI
 
@@ -57,71 +58,103 @@ class DeepSeekService:
 
     def _get_system_prompt(self) -> str:
         return (
-            "你是一个求职实习平台的智能助手，名叫'实习帮助手'。\n"
-            "你可以调用以下工具：\n"
-            "1. search_jobs：根据关键词、地点、学历搜索实习岗位。\n"
-            "2. get_job_detail：根据岗位ID获取岗位详情。\n"
-            "如果用户问平台功能，直接回答。\n"
-            "如果用户问简历、面试建议，基于知识回答。\n"
-            "如果用户问无关内容，礼貌说明只处理求职相关问题。\n"
-            "始终使用中文，回答简洁专业。"
+            "你是实习帮助手，一个求职实习平台的智能助手。\n"
+            "你的能力：\n"
+            "1. 使用 search_jobs 工具搜索实习岗位，参数包括 keyword（关键词）、location（地点）、education（学历）。\n"
+            "2. 使用 get_job_detail 工具获取某个岗位的详细信息，参数是 job_id。\n\n"
+            "规则：\n"
+            "- 仅当用户明确询问岗位或需要搜索岗位时才调用 search_jobs。\n"
+            "- 如果用户询问某个具体岗位的详情，且你有该岗位的 id，调用 get_job_detail。\n"
+            "- 如果第一次搜索没有结果，可以尝试放宽条件再搜一次，但最多搜索两次，避免过度调用。\n"
+            "- 如果用户问平台功能、简历建议、面试技巧等，直接基于知识回答，不要调用工具。\n"
+            "- 如果用户问无关内容，礼貌说明你只处理求职相关问题。\n"
+            "- 始终使用中文，回答简洁专业，先陈述事实，再提供建议。\n"
+            "- 如果工具返回错误，如实告知用户，不要编造信息。"
         )
 
     def _get_tools(self) -> list[dict[str, Any]]:
+        """
+        生成可供 OpenAI 模型调用的工具定义列表。
+
+        此方法会在每次请求前被调用，将内部 Tool 对象序列化为 OpenAI 可识别的 JSON 结构（名字、描述、参数格式），
+        使得模型能够根据用户问题选择合适的工具。
+        """
         return [tool.to_openai_schema() for tool in self.tools]
 
     async def _call_deepseek_api(self, messages, tools=None):
+        """
+        调用 DeepSeek 模型，根据用户消息调用工具。
+        """
         if not self.api_key:
             logger.error("DeepSeek API key not configured")
             return None
 
-        kwargs = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 1024,
-        }
         if tools:
-            kwargs["tools"] = tools
-            kwargs["tool_choice"] = "auto"
-
-        try:
-            response = await self.client.chat.completions.create(**kwargs)
-            return response
-        except Exception as e:
-            logger.error(f"DeepSeek API call failed: {e}")
-            return None
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024,
+                tools=tools,
+                tool_choice="auto"
+            )
+        else:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024
+            )
+        return response
 
     async def chat(
         self,
         db: AsyncSession,
-        message: str,
-        conversation_history: list[ChatMessage] | None = None,
-    ) -> tuple[str, list[RelatedJob]]:
-        messages = []
-        if conversation_history:
-            for msg in conversation_history:
-                messages.append({"role": msg.role, "content": msg.content})
-        messages.append({"role": "user", "content": message})
+        messages: list[dict[str, Any]],  # 传入时包含当前user消息（如果是多次调用，包含历史消息；如果是第一次调用，不包含历史消息），不包含system prompt
+    ) -> tuple[str, list[RelatedJob], list[dict[str, Any]]]:
+        """
+        返回 (reply, related_jobs, updated_messages)
+        updated_messages 为最终消息列表（不含 system prompt），用于保存会话。
+        """
+        system_prompt = self._get_system_prompt()
+        full_messages = [{"role": "system", "content": system_prompt}] + messages
+        related_jobs: list[RelatedJob] = []
+        MAX_ITERATIONS = 5   # 最大迭代次数，避免无限循环
 
-        related_jobs = []
-        MAX_ITERATIONS = 5
-
+        # 循环调用模型，直到没有 tool_calls 或超过最大迭代次数
         for _ in range(MAX_ITERATIONS):
-            response = await self._call_deepseek_api(messages, self._get_tools())
+            response = await self._call_deepseek_api(full_messages, self._get_tools())
             if not response:
-                return "AI服务暂时不可用，请稍后再试。", []
+                return "AI服务暂时不可用，请稍后再试。", [], messages
 
-            choice = response["choices"][0]
-            assistant_msg = choice.message
+            assistant_msg = response.choices[0].message # 获取模型回复的消息（可能包含 tool_calls 也可能只有纯文本）
 
-            # 将 assistant 消息转为 dict 放入 messages
-            messages.append(assistant_msg.model_dump())
+            # 手动构造 assistant 消息
+            assistant_dict: dict[str, Any] = {
+                "role": "assistant",
+                "content": assistant_msg.content or "",
+            }
+            if assistant_msg.tool_calls:
+                assistant_dict["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in assistant_msg.tool_calls
+                ]
+            full_messages.append(assistant_dict) 
+
+            # 同时保存到最终 messages（不含 system）
+            messages.append(assistant_dict) 
 
             if assistant_msg.tool_calls:
                 for tool_call in assistant_msg.tool_calls:
                     tool_name = tool_call.function.name
-                    tool = next((t for t in self.tools if t.name == tool_name), None)
+                    tool = next((t for t in self.tools if t.name == tool_name), None)   
 
                     if not tool:
                         result = {"error": f"未知工具: {tool_name}"}
@@ -129,23 +162,25 @@ class DeepSeekService:
                         try:
                             args = json.loads(tool_call.function.arguments or "{}")
                             result = await tool.func(db=db, **args)
-                            if tool_name == "search_jobs":
+                            if tool_name == "search_jobs" and isinstance(result, list):
                                 # 收集岗位信息用于返回
                                 related_jobs.extend(result)
-                        except Exception as e:
+                        except Exception as e: # AI 模型有时可能返回非标准 JSON 格式
                             logger.error(f"Tool execution error: {e}")
                             result = {"error": str(e)}
 
-                    messages.append({
+                    tool_msg = {
                         "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": json.dumps(result, ensure_ascii=False),
-                    })
+                        "tool_call_id": tool_call.id,   # 模型回复的 tool_call_id，用于关联数据库返回结果
+                        "content": json.dumps(result, ensure_ascii=False),  # 数据库返回结果
+                    }
+                    full_messages.append(tool_msg)
+                    messages.append(tool_msg) 
 
-                continue  # 回到循环开头，让模型继续思考
+                continue  # 回到循环开头，让模型继续处理
 
-            # 没有 tool_calls，直接返回文本
+            # 无工具调用，直接返回最终回复
             reply = assistant_msg.content or ""
-            return reply, related_jobs
+            return reply, related_jobs, messages
 
-        return "抱歉，我暂时无法完成这个任务，请稍后再试。", related_jobs
+        return "抱歉，我暂时无法完成这个任务，请稍后再试。", related_jobs, messages
