@@ -1,6 +1,9 @@
 # 生产环境配置
 services:
   app:
+    environment:
+        - HF_ENDPOINT=https://hf-mirror.com
+        - HF_HOME=/app/.cache/huggingface
     build: .
     container_name: my_fastapi_app
     restart: always
@@ -26,7 +29,7 @@ services:
       start_period: 10s
 
   redis:
-    image: redis:alpine
+    image: redis/redis-stack-server:latest
     container_name: my_redis
     restart: always
     ports:
@@ -43,7 +46,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 150M
+          memory: 300M
 
   db:
     image: mysql:8.0

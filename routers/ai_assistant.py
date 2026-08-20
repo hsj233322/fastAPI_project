@@ -39,7 +39,7 @@ async def chat_with_ai(
     db: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
     redis: Annotated[Redis, Depends(get_redis)],
-    _: Annotated[None, Depends(check_rate_limit)],
+    _: Annotated[None, Depends(rate_limit)],
 ):
     """
     与 AI 助手进行多轮对话。
