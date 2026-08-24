@@ -51,7 +51,7 @@ def login_and_get_cookies(username: str, password: str):
     driver = webdriver.Edge(service=service, options=options)
 
     try:
-        print("🔄 正在打开求职者登录页面...")
+        print("正在打开求职者登录页面...")
         driver.get(LOGIN_URL)
         wait = WebDriverWait(driver, 10)
 
@@ -76,7 +76,7 @@ def login_and_get_cookies(username: str, password: str):
         except:
             # 如果页面上没有“退出”，可以等 URL 变化或直接等待几秒
             time.sleep(3)
-        print("✅ 登录成功！")
+        print("登录成功！")
 
         # 提取浏览器中的所有 Cookie
         selenium_cookies = driver.get_cookies()
@@ -102,14 +102,14 @@ def login_and_get_cookies(username: str, password: str):
         xsrf_token = session.cookies.get("XSRF-CCKTOKEN")
         if xsrf_token:
             session.headers["X-XSRF-TOKEN"] = xsrf_token
-            print(f"🎫 XSRF Token 已设置: {xsrf_token[:16]}...")
+            print(f"XSRF Token 已设置: {xsrf_token[:16]}...")
         else:
-            print("⚠️ 未找到 XSRF-CCKTOKEN，可能会影响请求")
+            print("未找到 XSRF-CCKTOKEN，可能会影响请求")
 
         return session
 
     except Exception as e:
-        print(f"❌ 登录失败：{e}")
+        print(f"登录失败：{e}")
         # 登录失败时保存截图方便排查
         driver.save_screenshot("login_error.png")
         driver.quit()
@@ -142,15 +142,15 @@ def fetch_page(session, page_no, page_size=10):
 
     ct = resp.headers.get("Content-Type", "")
     if "json" not in ct.lower():
-        print(f"❌ 第{page_no}页非JSON! Content-Type={ct}")
-        print(f"📄 响应预览:\n{resp.text[:500]}")
+        print(f"第{page_no}页非JSON! Content-Type={ct}")
+        print(f"响应预览:\n{resp.text[:500]}")
         return None
 
     try:
         data = resp.json()
     except Exception as e:
-        print(f"❌ 第{page_no}页 JSON解析失败: {e}")
-        print(f"📄 响应预览:\n{resp.text[:500]}")
+        print(f"第{page_no}页 JSON解析失败: {e}")
+        print(f"响应预览:\n{resp.text[:500]}")
         return None
 
     if not data.get("flag"):
@@ -186,7 +186,7 @@ def crawl_all_jobs(session, max_pages=None, delay=5):
     if max_pages:
         total_pages = min(total_pages, max_pages)
 
-    print(f"\n📊 计划爬取 {total_pages} 页，预计 {(total_pages - 1) * delay} 秒完成\n")
+    print(f"\n计划爬取 {total_pages} 页，预计 {(total_pages - 1) * delay} 秒完成\n")
 
     for page in range(2, total_pages + 1):
         time.sleep(delay)
@@ -232,7 +232,7 @@ def save_to_csv(jobs, filename="ncss_intern_jobs.csv"):
                 pub_date, job["jobId"],
             ])
 
-    print(f"✅ 数据已保存至 {filename}，共 {len(jobs)} 条")
+    print(f"数据已保存至 {filename}，共 {len(jobs)} 条")
 
 # ---------- 主程序 ----------
 if __name__ == "__main__":
