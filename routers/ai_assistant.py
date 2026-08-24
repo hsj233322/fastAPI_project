@@ -36,7 +36,6 @@ async def rate_limit(
 @router.post("/chat", response_model=ApiResponse[ChatResponse])
 async def chat_with_ai(
     chat_request: ChatRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
     redis: Annotated[Redis, Depends(get_redis)],
     _: Annotated[None, Depends(rate_limit)],
@@ -56,7 +55,7 @@ async def chat_with_ai(
 
     # 3. 调用 Agent 循环
     reply, related_jobs, updated_messages = await deepseek_service.chat(
-        db=db,
+        redis=redis,
         messages=current_messages,
     )
 

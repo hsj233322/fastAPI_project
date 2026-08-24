@@ -4,14 +4,11 @@ import json
 import logging
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
-import httpx
-from typing import Annotated
-from pydantic import Field
+from redis.asyncio import Redis
 
-from schemas.ai_assistant import ChatMessage, RelatedJob
-from crud.internship import search_internships 
+from schemas.ai_assistant import RelatedJob
 from core.tool import Tool
-from services.tool_functions import search_jobs_func, get_job_detail_func
+from services.tool_functions import search_jobs_by_semantic_func
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
@@ -29,30 +26,19 @@ class DeepSeekService:
         
         self.tools = [
             Tool(
-                name="search_jobs",
-                description="根据关键词、地点、学历要求搜索实习岗位。仅当用户明确问岗位时才调用。",
+                name="search_jobs_by_semantic",
+                description=(
+                    "根据用户的自然语言描述，通过语义匹配查找最相关的实习岗位。"
+                    "这是唯一用于搜索岗位的工具。无论用户是问'AI实习'、'广州的工作'还是'适合文科生的岗位'，都调用此工具。"
+                ),
                 parameters={
                     "type": "object",
                     "properties": {
-                        "keyword": {"type": "string", "description": "岗位名称关键词，如'开发'、'算法'、'产品'"},
-                        "location": {"type": "string", "description": "省份或城市，如'北京'、'上海'"},
-                        "education": {"type": "string", "description": "学历要求，如'本科'、'硕士'"},
+                        "query": {"type": "string", "description": "将用户的请求总结为核心意图描述"},
                     },
-                    "required": [],
+                    "required": ["query"],
                 },
-                func=search_jobs_func,
-            ),
-            Tool(
-                name="get_job_detail",
-                description="根据岗位ID获取岗位详细信息。当用户想了解某个具体岗位详情时调用。",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "job_id": {"type": "integer", "description": "岗位ID"},
-                    },
-                    "required": ["job_id"],
-                },
-                func=get_job_detail_func,
+                func=search_jobs_by_semantic_func,
             ),
         ]
 
@@ -60,16 +46,13 @@ class DeepSeekService:
         return (
             "你是实习帮助手，一个求职实习平台的智能助手。\n"
             "你的能力：\n"
-            "1. 使用 search_jobs 工具搜索实习岗位，参数包括 keyword（关键词）、location（地点）、education（学历）。\n"
-            "2. 使用 get_job_detail 工具获取某个岗位的详细信息，参数是 job_id。\n\n"
+            "1. 使用 search_jobs_by_semantic 工具搜索岗位。用户无论怎么描述（具体关键词或模糊意图），都调用此工具。\n\n"
             "规则：\n"
-            "- 仅当用户明确询问岗位或需要搜索岗位时才调用 search_jobs。\n"
-            "- 如果用户询问某个具体岗位的详情，且你有该岗位的 id，调用 get_job_detail。\n"
-            "- 如果第一次搜索没有结果，可以尝试放宽条件再搜一次，但最多搜索两次，避免过度调用。\n"
+            "- 当用户询问岗位、推荐工作、或描述理想职位时，必须调用 search_jobs_by_semantic 工具。\n"
+            "- 工具返回的结果已包含岗位标题、公司、薪资等详情，直接基于这些信息回答用户。\n"
             "- 如果用户问平台功能、简历建议、面试技巧等，直接基于知识回答，不要调用工具。\n"
             "- 如果用户问无关内容，礼貌说明你只处理求职相关问题。\n"
-            "- 始终使用中文，回答简洁专业，先陈述事实，再提供建议。\n"
-            "- 如果工具返回错误，如实告知用户，不要编造信息。"
+            "- 始终使用中文，回答简洁专业。"
         )
 
     def _get_tools(self) -> list[dict[str, Any]]:
@@ -81,7 +64,11 @@ class DeepSeekService:
         """
         return [tool.to_openai_schema() for tool in self.tools]
 
-    async def _call_deepseek_api(self, messages, tools=None):
+    async def _call_deepseek_api(
+        self,
+        messages,
+        tools= None,
+    ) -> Any:
         """
         调用 DeepSeek 模型，根据用户消息调用工具。
         """
@@ -109,16 +96,19 @@ class DeepSeekService:
 
     async def chat(
         self,
-        db: AsyncSession,
+        redis: Redis,
         messages: list[dict[str, Any]],  # 传入时包含当前user消息（如果是多次调用，包含历史消息；如果是第一次调用，不包含历史消息），不包含system prompt
     ) -> tuple[str, list[RelatedJob], list[dict[str, Any]]]:
         """
-        返回 (reply, related_jobs, updated_messages)
-        updated_messages 为最终消息列表（不含 system prompt），用于保存会话。
+        返回 (reply, related_jobs, messages)
+        messages 为最终消息列表（不含 system prompt），用于保存会话。
         """
         system_prompt = self._get_system_prompt()
         full_messages = [{"role": "system", "content": system_prompt}] + messages
+
         related_jobs: list[RelatedJob] = []
+        seen_job_ids: set[int] = set()  # 用于岗位去重
+
         MAX_ITERATIONS = 5   # 最大迭代次数，避免无限循环
 
         # 循环调用模型，直到没有 tool_calls 或超过最大迭代次数
@@ -147,7 +137,6 @@ class DeepSeekService:
                     for tc in assistant_msg.tool_calls
                 ]
             full_messages.append(assistant_dict) 
-
             # 同时保存到最终 messages（不含 system）
             messages.append(assistant_dict) 
 
@@ -161,10 +150,12 @@ class DeepSeekService:
                     else:
                         try:
                             args = json.loads(tool_call.function.arguments or "{}")
-                            result = await tool.func(db=db, **args)
-                            if tool_name == "search_jobs" and isinstance(result, list):
-                                # 收集岗位信息用于返回
-                                related_jobs.extend(result)
+                            # 执行工具函数
+                            result = await tool.func(redis=redis, **args)
+                
+                            if isinstance(result, list):
+                                related_jobs = result   # 向量检索到的top_k个岗位详情
+
                         except Exception as e: # AI 模型有时可能返回非标准 JSON 格式
                             logger.error(f"Tool execution error: {e}")
                             result = {"error": str(e)}
