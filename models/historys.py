@@ -1,5 +1,5 @@
 # models/historys.py
-from sqlalchemy import ForeignKey, DateTime
+from sqlalchemy import ForeignKey, DateTime, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime, timezone
 from models import Base
@@ -9,6 +9,11 @@ from models.internship import Internship
 
 class ViewHistory(Base):
     __tablename__ : str = "internship_view_history"
+
+    # 复合索引：覆盖按 (user_id, internship_id) 查找更新；最左前缀覆盖按 user_id 的列表/清空查询
+    __table_args__ = (
+        Index('idx_user_internship', 'user_id', 'internship_id'),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="记录ID")
     

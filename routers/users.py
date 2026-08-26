@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.db_config import get_db
 from schemas.users import UserRegisterRequest
 from utils.security import verify_password
+from utils.jwt_utils import create_access_token
 from schemas.users import LoginData, UserInfo, UserUpdateRequest, UserLoginRequest, ChangePasswordRequest
 from schemas import ApiResponse
 from models.users import User
@@ -73,8 +74,8 @@ async def login(
     if not db_user or not verify_password(user_data.password, db_user.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
     
-    # 生成 Token
-    token = await users.create_token(db, db_user.id)
+    # 签发 JWT（无状态，不再写入数据库）
+    token = create_access_token(db_user.id)
 
     # 组装返回数据
     user_info = UserInfo.model_validate(db_user)

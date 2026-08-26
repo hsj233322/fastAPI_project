@@ -39,7 +39,7 @@ job-api/
 ├── models/                  # ORM 模型层（对应数据库表结构）
 │   ├── __init__.py         # ORM 基类 Base / TimestampMixin 时间戳混入
 │   ├── internship.py       # Internship 实习岗位表、InternshipCategory 分类表
-│   ├── users.py            # User 表 / UserToken 表
+│   ├── users.py            # User 表
 │   ├── collects.py         # Collect 收藏表（user_id+internship_id 复合唯一约束）
 │   └── historys.py         # ViewHistory 浏览历史表
 │
@@ -62,7 +62,7 @@ job-api/
 ├── crud/                    # 数据操作层（数据库 CRUD 封装）
 │   ├── __init__.py
 │   ├── internship.py       # 实习岗位查询、浏览量刷盘、相关推荐、语义搜索辅助
-│   ├── users.py            # 用户注册/查询、认证、Token 管理
+│   ├── users.py            # 用户注册/查询、资料与密码更新
 │   ├── collects.py         # 收藏增删查
 │   └── historys.py         # 历史记录增删查、清空
 │
@@ -76,7 +76,8 @@ job-api/
 │
 ├── utils/                   # 工具模块
 │   ├── __init__.py
-│   ├── auth.py             # Token 认证依赖（get_current_user）
+│   ├── auth.py             # JWT 鉴权依赖（get_current_user）
+│   ├── jwt_utils.py        # JWT 签发与校验（create_access_token / decode_access_token）
 │   ├── http.py             # HTTP 相关工具
 │   ├── rate_limit.py       # 基于 Redis 的 IP / 用户频率限制
 │   └── security.py         # 密码加密与验证（bcrypt）
@@ -329,13 +330,16 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 
 ### 认证方式
 
-需要登录的接口在请求头中携带 Token：
+采用 JWT（HS256）无状态鉴权。登录成功后后端签发 access token，前端在需要登录的接口请求头中携带：
 
 ```
-Authorization: Bearer <token>
+Authorization: Bearer <jwt>
 ```
 
-Token 在注册或登录成功后返回，有效期 7 天。
+- Token 由 `utils/jwt_utils.py` 签发，密钥与算法通过 `.env` 的 `JWT_SECRET_KEY` / `JWT_ALGORITHM` 配置。
+- payload 含 `sub`（用户 ID）、`exp`（过期）、`iat`（签发时间）；有效期 7 天（由 `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` 控制）。
+- 鉴权依赖 `utils/auth.py::get_current_user`：校验签名/过期后，从 `sub` 取出用户 ID 回查数据库返回 `User` 对象。
+- 修改密码不会使已签发的旧 token 立即失效，需等待自然过期或前端跳转重新登录。
 
 ## 统一响应格式
 
@@ -434,13 +438,14 @@ AI 助手采用 **Agent 循环 + 检索增强生成（RAG）** 架构，相比�
 | 表名                        | 说明                   |
 | ------------------------- | -------------------- |
 | `user`                    | 用户信息（用户名、密码、头像、性别等）  |
-| `user_token`              | 用户登录令牌（UUID，7天过期）    |
 | `internship_category`     | 实习岗位分类               |
 | `internship`              | 实习岗位（标题、公司、薪资、学历要求等） |
 | `internship_collect`      | 收藏记录（用户 + 岗位唯一约束）    |
 | `internship_view_history` | 浏览历史（重复浏览更新时间）       |
 
 数据库表由 SQLAlchemy ORM 模型自动创建，启动时会检查并创建缺失的表。
+
+> **关于历史遗留表**：项目早期鉴权使用 `user_token` 表（UUID 模式），改造为 JWT 无状态鉴权后该表已废弃并从 ORM 移除。`Base.metadata.create_all` 不会自动 drop 已存在的表，因此旧库中可能仍残留 `user_token` 表，无害保留即可，或执行 `DROP TABLE user_token;` 手动清理。
 
 ## 全局异常处理
 

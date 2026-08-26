@@ -1,11 +1,8 @@
 # crud/users.py
-import secrets
-
-from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.users import User, UserToken
+from models.users import User
 from schemas.users import UserRegisterRequest, UserUpdateRequest, ChangePasswordRequest
 from utils import security
 from fastapi import HTTPException, status
@@ -29,31 +26,6 @@ async def create_user(db: AsyncSession, user_data: UserRegisterRequest):
     await db.commit()
     await db.refresh(user)
     return user
-
-
-async def create_token(db: AsyncSession, user_id: int):
-    """生成或更新用户 Token"""
-    token = secrets.token_urlsafe(32) 
-    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-
-    query = select(UserToken).where(UserToken.user_id == user_id)
-    result = await db.execute(query)
-    user_token = result.scalar_one_or_none()
-
-    if user_token:
-        user_token.token = token
-        user_token.expires_at = expires_at
-    else:
-        user_token = UserToken(
-            token=token,
-            expires_at=expires_at,
-            user_id=user_id,
-        )
-        db.add(user_token)
-
-    await db.commit() 
-    await db.refresh(user_token)
-    return token
 
 
 async def update_user(
