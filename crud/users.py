@@ -14,6 +14,14 @@ async def get_user_by_username(db: AsyncSession, username: str):
     result = await db.execute(query)
     return result.scalar_one_or_none()
 
+
+async def get_user_by_id(db: AsyncSession, user_id: int):
+    """根据用户ID查询用户"""
+    query = select(User).where(User.id == user_id)
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
 async def create_user(db: AsyncSession, user_data: UserRegisterRequest):
     """创建新用户"""
     hashed_password = security.get_hash_password(user_data.password)
@@ -46,10 +54,13 @@ async def update_user(
 
 async def update_password(
         db: AsyncSession,
-        user: User,
+        user_id: int,
         update_data: ChangePasswordRequest,
 ):
     """更新用户密码"""
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
     
     if update_data.new_password == update_data.old_password:
         raise HTTPException(status_code=400, detail="新密码不能与旧密码相同")

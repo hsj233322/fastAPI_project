@@ -37,7 +37,7 @@ async def rate_limit(
 @router.post("/chat", response_model=ApiResponse[ChatResponse])
 async def chat_with_ai(
     chat_request: ChatRequest,
-    user_id: Annotated[str, Depends(get_current_user)],
+    user: Annotated[User, Depends(get_current_user)],
     redis: Annotated[Redis, Depends(get_redis)],
     _: Annotated[None, Depends(rate_limit)],
 ):
@@ -48,7 +48,7 @@ async def chat_with_ai(
     并返回关联的职位推荐列表。
     """
     # 1. 会话管理
-    session_manager = SessionManager(redis, int(user_id))
+    session_manager = SessionManager(redis, user.id)
     session_id, history_messages = await session_manager.load_messages(chat_request.session_id) # 加载会话历史消息
 
     # 2. 构建当前请求消息列表（不含 system prompt）

@@ -27,3 +27,6 @@ class User(Base, TimestampMixin):
     )
     bio: Mapped[str | None] = mapped_column(String(500), comment="简介", default="这个人很懒，什么都没有留下")
     phone: Mapped[str | None] = mapped_column(String(20), comment="手机号")
+    token_version: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, comment="JWT令牌版本号，修改密码或强制登出时+1"
+    )

@@ -15,6 +15,7 @@ from redis.asyncio import Redis
 from config.redis_config import get_redis
 from utils.rate_limit import check_rate_limit
 from utils.http import get_client_ip
+import json
 
 # 创建 APIRuter 实例
 router = APIRouter(prefix='/api/user',tags=["个人中心"])
@@ -71,18 +72,14 @@ async def login(
     
     # 查用户
     db_user = await users.get_user_by_username(db, user_data.username)
+    # 校验密码
     if not db_user or not verify_password(user_data.password, db_user.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
+
+    # 签发 token 时带上 token_version
+    token = create_access_token(db_user.id, db_user.token_version)
+    return ApiResponse(data=LoginData(token=token, user_info=UserInfo.model_validate(db_user)))
     
-    # 签发 JWT（无状态，不再写入数据库）
-    token = create_access_token(db_user.id)
-
-    # 组装返回数据
-    user_info = UserInfo.model_validate(db_user)
-    login_data = LoginData(token=token, user_info=user_info)
-
-    return ApiResponse(data=login_data)
-
 
 """获取个人中心"""
 @router.get("/profile", response_model=ApiResponse[UserInfo])
@@ -108,7 +105,11 @@ async def update_profile(
 async def update_password(
     user_data: ChangePasswordRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    user: Annotated[User, Depends(get_current_user)]    
+    user: Annotated[User, Depends(get_current_user)],
 )-> ApiResponse[None]:
-    _ = await users.update_password(db, user, user_data)
+    _ = await users.update_password(db, user.id, user_data)
+
+    user.token_version += 1
+    await db.commit()
+
     return ApiResponse(code=200, message="密码修改成功")

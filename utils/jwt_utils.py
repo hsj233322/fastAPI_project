@@ -26,12 +26,14 @@ ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")  # 默认 HS256
 ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 
-def create_access_token(user_id: int, extra_claims: dict[str, str] | None = None) -> str:
+def create_access_token(user_id: int, token_version: int, extra_claims: dict[str, str] | None = None
+) -> str:
     """签发 JWT。返回字符串形式的 token。"""
     now = datetime.now(timezone.utc)
     expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload: dict[str, Any] = {
         "sub": str(user_id),
+        "version": token_version,
         "exp": expire,
         "iat": now,
     }
