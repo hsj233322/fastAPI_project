@@ -27,6 +27,7 @@ from models.historys import ViewHistory
 from models.internship import Internship, InternshipCategory
 
 import logging
+from services.tool_functions import get_embedding_model
 
 # 统一设置全局日志级别为 INFO，确保所有模块的 logger.info 都能正常输出
 logging.basicConfig(
@@ -38,12 +39,17 @@ logging.basicConfig(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # --- 启动阶段 ---
-    # 1. 初始化数据库表
+    # 初始化数据库表
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
-    # 2. 启动后台任务
-    # 3. 传入数据库会话工厂（用来创建新的数据库会话）
+    # 预加载向量模型（主动触发加载）
+    print("正在预加载 BGE 模型...")
+    model = get_embedding_model()  # 这行会花 10~15 秒加载，但只执行一次
+    # 你也可以把模型存到 app.state 备用（但本项目中用不到，因为 tool_functions 会直接调用 get_embedding_model）
+    print("模型预加载完成！")
+
+    # 传入数据库会话工厂（用来创建新的数据库会话）
     await start_background_tasks(async_session_factory)
     
     print("Application startup complete")
@@ -58,7 +64,7 @@ async def lifespan(app: FastAPI):
     print("All resources released")
 
 
-# 4. 在创建 app 之前定义 session_factory
+# 在创建 app 之前定义 session_factory
 async_session_factory = async_sessionmaker(
     async_engine, 
     expire_on_commit=False  # 禁用自动过期，确保会话在请求完成后手动关闭

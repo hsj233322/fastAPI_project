@@ -38,14 +38,16 @@ async def create_user(db: AsyncSession, user_data: UserRegisterRequest):
 
 async def update_user(
         db: AsyncSession,
-        user: User, # 工具函数 auth 查出来的 ORM 对象
+        user_id: int,
         update_data: UserUpdateRequest,   # 前端传来的部分数据
 ):
     """更新用户信息"""
-    update_dict = update_data.model_dump(exclude_unset=True)    # 只获取前端实际传过来的字段，转成字典
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
 
     # 遍历字典，动态覆盖 ORM 对象的属性
-    for key, value in update_dict.items():
+    for key, value in update_data.model_dump(exclude_unset=True).items():
         setattr(user, key, value)   # 等同于 user.key = value   user.bio = "新简介"
 
     await db.commit()       # 提交更改到数据库
@@ -75,8 +77,9 @@ async def update_password(
     # 加密新密码
     new_hashed_password = get_hash_password(update_data.new_password)
 
-    # 更新用户密码
+    # 更新用户密码和 token_version
     user.password = new_hashed_password
+    user.token_version += 1
 
     # 提交并刷新
     await db.commit()

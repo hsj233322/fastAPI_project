@@ -1,9 +1,6 @@
 # utils/auth.py
-"""鉴权依赖：从 Authorization: Bearer <jwt> 提取并校验 JWT，返回当前登录的 user_id。"""
+"""鉴权依赖：从 Authorization: Bearer <jwt> 提取并校验 JWT，返回当前登录的用户对象。"""
 from typing import Annotated
-from redis.asyncio import Redis
-import json
-from config.redis_config import get_redis
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -21,7 +18,7 @@ async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bearer)],
 ) -> User:
     """校验 JWT 并返回用户对象，同时验证 token_version
-    同时判断用户是否存在，若不存在则抛出 404 HTTPException
+    同时判断用户是否存在，若不存在则抛出 401 HTTPException
     """
     payload = decode_access_token(credentials.credentials)
     user_id_raw = payload.get("sub")

@@ -94,10 +94,9 @@ async def get_profile(
 async def update_profile(
     user_data: UserUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)]
+    user: Annotated[User, Depends(get_current_user)]
 ):
-    updated_user = await users.update_user(db, current_user, user_data)
-
+    updated_user = await users.update_user(db, user.id, user_data)
     return ApiResponse(data=UserInfo.model_validate(updated_user))
 
 """修改密码"""
@@ -108,8 +107,4 @@ async def update_password(
     user: Annotated[User, Depends(get_current_user)],
 )-> ApiResponse[None]:
     _ = await users.update_password(db, user.id, user_data)
-
-    user.token_version += 1
-    await db.commit()
-
     return ApiResponse(code=200, message="密码修改成功")
