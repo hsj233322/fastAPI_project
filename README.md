@@ -1,6 +1,6 @@
-# 实习帮 - 高校实习岗位平台
+# 智能岗位推荐平台
 
-求职实习平台后端服务（核心），基于 FastAPI 框架开发，提供实习岗位浏览、用户登录、收藏管理、浏览历史和 **AI 助手（Agent 循环 + RAG 检索增强）** 等功能。仓库内附带一个基于 Vue 3 + Element Plus（CDN 方式）的前端演示页面，仅作接口联调与功能展示用途。
+基于 FastAPI 框架开发，提供实习岗位浏览、用户登录、收藏管理、浏览历史和 **AI 助手（Agent 循环 + RAG 检索增强）** 等功能。仓库内附带一个基于 Vue 3 + Element Plus（CDN 方式）的前端演示页面，仅作接口联调与功能展示用途。
 
 ## 技术栈
 
@@ -259,13 +259,13 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 
 ### 用户模块 `/api/user`
 
-| 方法   | 路径                 | 说明                                          | 是否需要登录 |
-| ----- | -------------------- | --------------------------------------------- | :----------: |
-| POST  | `/api/user/register` | 用户注册（限流：IP 30s/5次）                  |      否      |
-| POST  | `/api/user/login`    | 用户登录（限流：IP 30s/5次 + 用户名 30s/5次） |      否      |
-| GET   | `/api/user/profile`  | 获取当前用户信息                              |      是      |
-| PATCH | `/api/user/profile`  | 修改用户信息                                  |      是      |
-| PUT   | `/api/user/password` | 修改密码                                      |      是      |
+| 方法    | 路径                   | 说明                              | 是否需要登录 |
+| ----- | -------------------- | ------------------------------- | :----: |
+| POST  | `/api/user/register` | 用户注册（限流：IP 30s/5次）              |    否   |
+| POST  | `/api/user/login`    | 用户登录（限流：IP 30s/5次 + 用户名 30s/5次） |    否   |
+| GET   | `/api/user/profile`  | 获取当前用户信息                        |    是   |
+| PATCH | `/api/user/profile`  | 修改用户信息                          |    是   |
+| PUT   | `/api/user/password` | 修改密码                            |    是   |
 
 ### 收藏模块 `/api/collects`
 
@@ -286,8 +286,8 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 
 ### AI助手模块 `/api/ai`
 
-| 方法   | 路径             | 说明                          | 是否需要登录 |
-| ---- | -------------- | ----------------------- | :----: |
+| 方法   | 路径             | 说明                        | 是否需要登录 |
+| ---- | -------------- | ------------------------- | :----: |
 | POST | `/api/ai/chat` | 与AI助手多轮对话（限流：每用户 60s/10次） |    是   |
 
 **聊天请求参数：**
@@ -324,6 +324,7 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 ```
 
 > **说明**：
+>
 > - `session_id` 为可选字段。不传（`null`）时后端会生成新的会话 ID 并返回，前端需保存以便续接多轮对话；后续请求带上同一 `session_id` 即可维持上下文。
 > - 会话历史存储在 Redis（key: `ai:session:{user_id}:{session_id}`，TTL 1 小时），不依赖前端回传历史消息，避免提示注入风险。
 > - `related_jobs` 可能为 `null`（AI 未调用检索工具时）或空列表（无匹配岗位）。
@@ -397,14 +398,14 @@ AI 助手采用 **Agent 循环 + 检索增强生成（RAG）** 架构，相比�
 
 ### 关键组件
 
-| 组件 | 文件 | 职责 |
-| --- | --- | --- |
-| 路由入口 | [routers/ai_assistant.py](file:///d:/Dev/Projects/job-api/routers/ai_assistant.py) | 接收请求、限流、串联会话与 Agent |
-| 会话管理 | [services/session_manager.py](file:///d:/Dev/Projects/job-api/services/session_manager.py) | 多轮对话历史读写，Redis 持久化，TTL 1h |
-| Agent 循环 | [services/deepseek_service.py](file:///d:/Dev/Projects/job-api/services/deepseek_service.py) | 拼装 system prompt、循环调用大模型、解析 tool_calls、执行工具、回喂结果 |
-| 工具抽象 | [core/tool.py](file:///d:/Dev/Projects/job-api/core/tool.py) | `Tool` 类：封装名称/描述/参数 schema/异步执行函数，可输出 OpenAI Function Calling schema |
-| 工具实现 | [services/tool_functions.py](file:///d:/Dev/Projects/job-api/services/tool_functions.py) | `search_jobs_by_semantic_func`：Embedding + RediSearch KNN 向量检索 |
-| 灌库脚本 | [scripts/embed_jobs_from_csv.py](file:///d:/Dev/Projects/job-api/scripts/embed_jobs_from_csv.py) | 批量将 CSV 岗位向量化并写入 Redis 向量索引 |
+| 组件       | 文件                                                                                                  | 职责                                                                   |
+| -------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| 路由入口     | [routers/ai\_assistant.py](file:///d:/Dev/Projects/job-api/routers/ai_assistant.py)                 | 接收请求、限流、串联会话与 Agent                                                  |
+| 会话管理     | [services/session\_manager.py](file:///d:/Dev/Projects/job-api/services/session_manager.py)         | 多轮对话历史读写，Redis 持久化，TTL 1h                                            |
+| Agent 循环 | [services/deepseek\_service.py](file:///d:/Dev/Projects/job-api/services/deepseek_service.py)       | 拼装 system prompt、循环调用大模型、解析 tool\_calls、执行工具、回喂结果                    |
+| 工具抽象     | [core/tool.py](file:///d:/Dev/Projects/job-api/core/tool.py)                                        | `Tool` 类：封装名称/描述/参数 schema/异步执行函数，可输出 OpenAI Function Calling schema |
+| 工具实现     | [services/tool\_functions.py](file:///d:/Dev/Projects/job-api/services/tool_functions.py)           | `search_jobs_by_semantic_func`：Embedding + RediSearch KNN 向量检索       |
+| 灌库脚本     | [scripts/embed\_jobs\_from\_csv.py](file:///d:/Dev/Projects/job-api/scripts/embed_jobs_from_csv.py) | 批量将 CSV 岗位向量化并写入 Redis 向量索引                                          |
 
 ### RAG 检索细节
 
@@ -424,12 +425,12 @@ AI 助手采用 **Agent 循环 + 检索增强生成（RAG）** 架构，相比�
 
 项目使用 Redis 作为缓存层，减少数据库查询压力，各类型数据的缓存过期时间不同：
 
-| 数据类型  | 缓存 Key 格式                    | 过期时间   |
-| ----- | ---------------------------- | ------ |
-| 岗位分类  | `internship:categories:list` | 24 小时  |
-| 岗位浏览量 | `internship:views:{岗位ID}`    | 60 秒刷盘 |
-| AI 会话历史 | `ai:session:{user_id}:{session_id}` | 1 小时 |
-| AI 限流计数 | `ai:rate:{user_id}` | 60 秒 |
+| 数据类型    | 缓存 Key 格式                           | 过期时间   |
+| ------- | ----------------------------------- | ------ |
+| 岗位分类    | `internship:categories:list`        | 24 小时  |
+| 岗位浏览量   | `internship:views:{岗位ID}`           | 60 秒刷盘 |
+| AI 会话历史 | `ai:session:{user_id}:{session_id}` | 1 小时   |
+| AI 限流计数 | `ai:rate:{user_id}`                 | 60 秒   |
 
 > 向量检索数据（`job:{职位ID}` 与索引 `idx:jobs`）由灌库脚本写入并持久化（Redis AOF），不设 TTL。
 

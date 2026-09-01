@@ -28,13 +28,25 @@ class DeepSeekService:
             Tool(
                 name="search_jobs_by_semantic",
                 description=(
-                    "根据用户的自然语言描述，通过语义匹配查找最相关的实习岗位。"
+                    "根据用户的自然语言描述，通过语义匹配查找最相关的实习岗位，"
+                    "并支持通过 location 参数对工作省份做精确过滤。"
                     "这是唯一用于搜索岗位的工具。无论用户是问'AI实习'、'广州的工作'还是'适合文科生的岗位'，都调用此工具。"
                 ),
                 parameters={
                     "type": "object",
                     "properties": {
-                        "query": {"type": "string", "description": "将用户的请求总结为核心意图描述"},
+                        "query": {
+                            "type": "string",
+                            "description": "用户的核心需求描述（岗位方向、专业、技能、学历等），不要包含地点信息",
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": (
+                                "期望的工作省份，如：河南、广东。"
+                                "用户提到工作地点时必传，城市需转换为所属省份（如郑州→河南、深圳→广东）；"
+                                "用户没有提到地点时省略此参数"
+                            ),
+                        },
                     },
                     "required": ["query"],
                 },
@@ -49,6 +61,8 @@ class DeepSeekService:
             "1. 使用 search_jobs_by_semantic 工具搜索岗位。用户无论怎么描述（具体关键词或模糊意图），都调用此工具。\n\n"
             "规则：\n"
             "- 当用户询问岗位、推荐工作、或描述理想职位时，必须调用 search_jobs_by_semantic 工具。\n"
+            "- 用户提到工作地点时，把地点转换为省份并传入 location 参数（如'郑州'→'河南'、'杭州'→'浙江'），query 中不要再重复地点；无法确定所属省份时省略 location。\n"
+            "- 如果工具返回空列表，如实告知用户暂时没有匹配的岗位，并建议调整关键词或放宽条件，不要编造岗位。\n"
             "- 工具返回的结果已包含岗位标题、公司、薪资等详情，直接基于这些信息回答用户。\n"
             "- 如果用户问平台功能、简历建议、面试技巧等，直接基于知识回答，不要调用工具。\n"
             "- 如果用户问无关内容，礼貌说明你只处理求职相关问题。\n"
@@ -97,19 +111,18 @@ class DeepSeekService:
     async def chat(
         self,
         redis: Redis,
-        messages: list[dict[str, Any]],  # 传入时包含当前user消息（如果是多次调用，包含历史消息；如果是第一次调用，不包含历史消息），不包含system prompt
+        messages: list[dict[str, Any]],  # 传入时包含当前user消息（如果是多次调用，包含历史消息；如果是第一次调用，不包含历史消息）
     ) -> tuple[str, list[RelatedJob], list[dict[str, Any]]]:
         """
         返回 (reply, related_jobs, messages)
-        messages 为最终消息列表（不含 system prompt），用于保存会话。
+        messages 为最终消息列表，用于保存会话。
         """
         system_prompt = self._get_system_prompt()
         full_messages = [{"role": "system", "content": system_prompt}] + messages
 
         related_jobs: list[RelatedJob] = []
-        seen_job_ids: set[int] = set()  # 用于岗位去重
 
-        MAX_ITERATIONS = 5   # 最大迭代次数，避免无限循环
+        MAX_ITERATIONS = 5   # 最大迭代次数
 
         # 循环调用模型，直到没有 tool_calls 或超过最大迭代次数
         for _ in range(MAX_ITERATIONS):
@@ -162,8 +175,8 @@ class DeepSeekService:
 
                     tool_msg = {
                         "role": "tool",
-                        "tool_call_id": tool_call.id,   # 模型回复的 tool_call_id，用于关联数据库返回结果
-                        "content": json.dumps(result, ensure_ascii=False),  # 数据库返回结果
+                        "tool_call_id": tool_call.id, 
+                        "content": json.dumps(result, ensure_ascii=False), 
                     }
                     full_messages.append(tool_msg)
                     messages.append(tool_msg) 

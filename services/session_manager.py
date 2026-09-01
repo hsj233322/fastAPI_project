@@ -39,7 +39,7 @@ class SessionManager:
 
     async def save_messages(self, session_id: str, messages: list[dict[str, Any]], ttl: int = 3600) -> None:
         """
-        保存 messages（不包含 system prompt），并设置过期时间。
+        保存 messages,并设置过期时间。
         """
         key = self._key(session_id)
         _ = await self.redis.set(key, json.dumps(messages, ensure_ascii=False), ex=ttl)

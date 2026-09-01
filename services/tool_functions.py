@@ -1,6 +1,7 @@
 # services/tool_functions.py
 import json
 import logging
+import re
 import threading
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,7 @@ import os
 from sentence_transformers import SentenceTransformer
 import asyncio
 import numpy as np
-from config import SCORE_THRESHOLD
+from config import SCORE_THRESHOLD, LOCATION_FILTER_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -119,9 +120,24 @@ def get_embedding_model():
     return _embedding_model
 
 
+# 省份后缀归一化（数据源中省份不带后缀，如 "河南"、"广东"）
+_PROVINCE_SUFFIXES = ("维吾尔自治区", "回族自治区", "壮族自治区", "自治区", "特别行政区", "省", "市")
+
+
+def _normalize_province(location: str) -> str | None:
+    """将模型传入的地点归一化为数据源中的省份名，如 "河南省" -> "河南" """
+    name = location.strip()
+    for suffix in _PROVINCE_SUFFIXES:
+        if name.endswith(suffix) and len(name) > len(suffix):
+            name = name[: -len(suffix)]
+            break
+    return name or None
+
+
 async def search_jobs_by_semantic_func(
     redis: Redis,
     query: str, # 用户输入的自然语言查询
+    location: str | None = None,  # 期望工作省份（可选），用于 province TAG 精确过滤
     top_k: int = 5,
 ):
     if not query or not query.strip():
@@ -136,12 +152,27 @@ async def search_jobs_by_semantic_func(
         )
         query_vec_bytes = query_vec.tobytes()   # 将 numpy 数组转成字节序列（Redis 向量字段需要的格式），这就是要传给 Redis 的查询向量。
         
+        # 0. 地域过滤条件：用户指定地点时，用 province TAG 精确过滤 + KNN 混合查询
+        filter_expr = ""
+        if location and location.strip():
+            province = _normalize_province(location)
+            # 仅接受常规省份名（中文/字母/数字），防止特殊字符破坏查询语法
+            if province and re.fullmatch(r"\w+", province):
+                filter_expr = f"(@province:{{{province}}})"
+
         # 1. 构造KNN 查询，直接要求返回所有需要的详情字段
-        q_str = f"*=>[KNN {top_k} @embedding $vec AS score]"
+        if filter_expr:
+            q_str = f"{filter_expr}=>[KNN {top_k} @embedding $vec AS score]"
+            # 地域是用户明确给出的硬性条件，此时语义分只负责排序，放宽阈值避免误杀
+            threshold = LOCATION_FILTER_THRESHOLD
+        else:
+            q_str = f"*=>[KNN {top_k} @embedding $vec AS score]"
+            threshold = SCORE_THRESHOLD
+
         search = redis.ft(INDEX_NAME)
         q = (
             Query(q_str)
-            .return_fields("job_id", "title", "company", "salary_min", "province", "education", "score")   # 指定返回的字段，包括 KNN 自动生成的 score
+            .return_fields("mysql_id", "title", "company", "salary_min", "province", "education", "score")   # 指定返回的字段，包括 KNN 自动生成的 score
             .dialect(2)
         )
         result = await search.search(q, query_params={"vec": query_vec_bytes})  # 执行查询
@@ -154,17 +185,25 @@ async def search_jobs_by_semantic_func(
             except (ValueError, TypeError):
                 score = 999.0
             
-            if score > SCORE_THRESHOLD:
+            if score > threshold:
                 continue  # 分数太高，不相关，跳过
-                
+            
+            # mysql_id 是灌库时写入的 MySQL 自增id，用于前端点击卡片跳转岗位详情
+            try:
+                job_id = int(doc.get("mysql_id", "") or 0)
+            except (ValueError, TypeError):
+                continue  # 无法回链 MySQL 的记录（旧数据/未导入）跳过
+            if job_id <= 0:
+                continue
+
             # 从 Redis 返回的 doc 里取数据
             result_list.append({
-                "id": int(doc.get("job_id", 0)),
-                "title": doc.get("title", ""),
-                "company_name": doc.get("company", ""),
-                "province": doc.get("province", ""),
-                "education": doc.get("education", ""),
-                "salary_min": doc.get("salary_min", ""),
+                "id": job_id,
+                "title": getattr(doc, "title", ""),
+                "company_name": getattr(doc, "company", ""),
+                "province": getattr(doc, "province", ""),
+                "education": getattr(doc, "education", ""),
+                "salary_min": getattr(doc, "salary_min", ""),
             })
             
         return result_list
