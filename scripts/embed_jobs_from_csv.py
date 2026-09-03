@@ -7,10 +7,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sentence_transformers import SentenceTransformer
 import os
-import json
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 # ========== 配置区 ==========
 CSV_PATH = "ncss_intern_jobs_20260718_120440.csv"
+MODEL_NAME = "BAAI/bge-small-zh-v1.5"
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+aiomysql://myuser:123456@localhost:3306/internship_app?charset=utf8mb4")
 INDEX_NAME = "idx:jobs"
@@ -18,6 +19,8 @@ EMBEDDING_DIM = 512
 BATCH_SIZE = 50     # 每批处理50条
 # ============================
 
+# 异步数据库引擎
+engine: AsyncEngine = create_async_engine(DATABASE_URL, echo=False)
 
 async def load_mysql_id_map() -> dict[str, int]:
     """
@@ -26,24 +29,31 @@ async def load_mysql_id_map() -> dict[str, int]:
     向量检索结果需要回链 MySQL（前端点击推荐卡片按自增 id 查岗位详情），
     而 Redis 里原本只存了 CSV 的职位ID（字符串），无法直接转成自增 id。
     """
-    engine = create_async_engine(DATABASE_URL)
-    try:
-        async with engine.connect() as conn:
-            rows = (await conn.execute(text("SELECT id, position_id FROM internship"))).all()
-        return {position_id: _id for _id, position_id in rows}
-    finally:
-        await engine.dispose()
+    async with engine.connect() as conn:
+        result = await conn.execute(text("SELECT id, position_id FROM internship"))
+        rows = result.all()
+
+        clean_map = {}
+        # 清洗 position_id，确保是字符串且去空格
+        for row in rows:
+            key = str(row.position_id).strip()  # 确保转字符串并去空格
+
+            if key in clean_map:
+                print(f"警告: position_id '{key}' 重复，将覆盖旧值 ID {clean_map[key]} -> {row.id}")
+            clean_map[key] = row.id
+        return clean_map
+
 
 async def create_index(redis: Redis):
-    """创建Redis向量索引（如果不存在）"""
+    """创建redisSearch 搜索索引"""
     try:
-        # 这里不再存储原文本，只存向量和关键过滤字段
-        await redis.execute_command(
-            f"FT.CREATE {INDEX_NAME} ON HASH PREFIX 1 job: SCHEMA "
-            f"job_id TAG SORTABLE "
-            f"province TAG SEPARATOR , "    # 用于按省份过滤
-            f"education TAG SEPARATOR , "   # 用于按学历过滤
-            f"embedding VECTOR HNSW 6 DIM {EMBEDDING_DIM} TYPE FLOAT32 DISTANCE_METRIC COSINE"
+        _ = await redis.execute_command(
+            "FT.CREATE", INDEX_NAME, "ON", "HASH", "PREFIX", "1", "job:", "SCHEMA",
+            "job_id", "TAG", "SORTABLE",
+            "province", "TAG", "SEPARATOR", ",",
+            "education", "TAG", "SEPARATOR", ",",
+            "embedding", "VECTOR", "HNSW", "6", "DIM", str(EMBEDDING_DIM), 
+            "TYPE", "FLOAT32", "DISTANCE_METRIC", "COSINE"
         )
         print(f"索引 {INDEX_NAME} 创建成功")
     except Exception as e:
@@ -52,68 +62,85 @@ async def create_index(redis: Redis):
         else:
             raise e
 
-async def main():
-    # 1. 加载模型
-    print("正在加载 Embedding 模型...")
-    model = SentenceTransformer('BAAI/bge-small-zh-v1.5')
-    print("模型加载完成")
-
-    # 2. 连接 Redis
-    redis = Redis.from_url(REDIS_URL, decode_responses=True)
-    await create_index(redis)
-
-    # 3. 用pandas读取 CSV
-    df = pd.read_csv(CSV_PATH, encoding='utf-8-sig')    # 一次性读入整个文件为 DataFrame
-    print(f"共读取 {len(df)} 条岗位记录")
-
-    # 3.1 加载 MySQL 的 position_id -> 自增id 映射（需先运行 import_data.py）
-    print("正在加载 MySQL 岗位ID映射...")
-    id_map = await load_mysql_id_map()
-    print(f"MySQL 中共 {len(id_map)} 条岗位记录")
-
-    # 4. 准备文本列表（切片/分块）
-    texts = []
-    for _, row in df.iterrows():
-        # 将关键信息拼成一段话，让模型理解语义
-        # 注意：工作地点必须参与向量化，否则"某省的岗位"这类地域查询在向量空间中无从匹配
-        text = f"工作地点：{row['省份']}。岗位名称：{row['岗位名称']}。专业要求：{row['专业要求']}。福利：{row['福利标签']}。单位：{row['单位名称']}。"
-        texts.append(text)
-
-    # 5. 分批生成向量
-    total = len(df)
-    for start in range(0, total, BATCH_SIZE):
-        end = min(start + BATCH_SIZE, total)
-        batch_df = df.iloc[start:end]
-        batch_texts = texts[start:end]
-
-        # 批量编码，转换为 numpy 数组
-        embeddings = model.encode(batch_texts, convert_to_numpy=True, show_progress_bar=True)
-        
-        # 存储到 Redis 哈希表
-        pipe = redis.pipeline()
-        for idx, (_, row) in enumerate(batch_df.iterrows()):
-            job_id = row['职位ID']
-            emb_bytes = embeddings[idx].astype(np.float32).tobytes()
             
-            key = f"job:{job_id}"
-            pipe.hset(
-                key,
-                mapping={
-                    "job_id": str(job_id),
-                    "mysql_id": str(id_map.get(str(job_id).strip(), "")),  # MySQL 自增id，供检索结果回链
-                    "province": row['省份'] or "",
-                    "education": row['学历要求'] or "",
-                    "title": row['岗位名称'] or "",
-                    "company": row['单位名称'] or "",
-                    "salary_min": str(row['薪资下限']), 
-                    "embedding": emb_bytes,
-                }
-            )
-        await pipe.execute()
-        print(f"已存储 {end}/{total} 条")
+def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    对原始 CSV 数据进行清洗和预处理
+    1. 填充所有 NaN 为空字符串
+    2. 将薪资下限转为字符串（避免存 Redis 报错）
+    """
+    df = df.fillna('')
+    df['薪资下限'] = df['薪资下限'].astype(str)
+    
+    return df
 
-    print("所有岗位向量化完成！")
-    await redis.close()
+async def main():
+    redis = None    # 占位,保证redis确实创建了连接才关闭，没有创建则跳过。
+    try:
+        # 加载模型
+        print("正在加载 Embedding 模型...")
+        model = SentenceTransformer(MODEL_NAME)
+        print("模型加载完成")
+
+        # 连接 Redis并创建索引
+        redis = Redis.from_url(REDIS_URL, decode_responses=True)
+        await create_index(redis)
+
+        # 读取 CSV
+        df = pd.read_csv(CSV_PATH, encoding='utf-8-sig')
+
+        # 数据清洗
+        df = prepare_dataframe(df)
+        print(f"共读取 {len(df)} 条岗位记录")
+
+        # 加载 MySQL 的 position_id -> 自增id 映射
+        id_map = await load_mysql_id_map()
+
+        # 分批生成向量
+        total = len(df)
+        for start in range(0, total, BATCH_SIZE):
+            end = min(start + BATCH_SIZE, total) 
+            batch_df = df.iloc[start:end]
+
+            batch_texts = [
+                f"工作地点：{row.省份}。岗位名称：{row.岗位名称}。专业要求：{row.专业要求}。福利：{row.福利标签}。单位：{row.单位名称}。"
+                for row in batch_df.itertuples()
+            ]
+
+            # 批量编码，转换为 numpy 数组
+            embeddings = model.encode(batch_texts, convert_to_numpy=True, show_progress_bar=True)
+            
+            # 存储到 Redis 哈希表
+            pipe = redis.pipeline()
+            for idx, row in enumerate(batch_df.itertuples()):
+                job_id = row.职位ID
+                emb_bytes = embeddings[idx].astype(np.float32).tobytes()
+                
+                key = f"job:{job_id}"
+                _ = pipe.hset(
+                    key,
+                    mapping={
+                        "job_id": str(job_id),
+                        "mysql_id": id_map.get(str(job_id), ""), 
+                        "province": row.省份,
+                        "education": row.学历要求,
+                        "title": row.岗位名称,
+                        "company": row.单位名称,
+                        "salary_min": row.薪资下限,
+                        "embedding": emb_bytes,
+                    }
+                )
+            await pipe.execute()
+            print(f"已存储 {end}/{total} 条")
+        print("所有岗位向量化完成！")
+    except Exception as e:
+        print(f"发生错误: {e}")
+        raise
+    finally:
+        if redis:
+            print("关闭 Redis 连接...")
+            await redis.close()
+    await engine.dispose()
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -81,6 +81,8 @@ async def get_internship_detail(
     db: Annotated[AsyncSession, Depends(get_db)],
     view_counter: Annotated[ViewCounterService, Depends(get_view_counter)],
 ):
+    """根据岗位ID获取岗位详情"""
+    
     internship = await crud_internship.get_internship_detail(db, internship_id)
     if not internship:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="岗位不存在")

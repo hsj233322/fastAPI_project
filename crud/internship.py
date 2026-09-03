@@ -88,8 +88,8 @@ async def get_internship_count(
     return result.scalar_one()
 
 
-# ---------- 岗位详情 ----------
 async def get_internship_detail(db: AsyncSession, internship_id: int) -> Internship | None:
+    """根据岗位自增ID获取岗位详情"""
     stmt = select(Internship).where(Internship.id == internship_id)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
@@ -154,8 +154,9 @@ async def search_internships(
         result = await db.execute(stmt)
         return list(result.scalars().all())
 
-# ---------- 工具函数 ----------
+
 async def get_internship_by_id(db: AsyncSession, internship_id: int) -> Internship | None:
+    """根据岗位ID获取岗位详情"""
     stmt = select(Internship).where(Internship.id == internship_id)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
