@@ -14,6 +14,7 @@ from services.session_manager import SessionManager
 from utils.auth import get_current_user
 from models.users import User
 from utils.rate_limit import check_rate_limit
+from core.tool_context import ToolContext
 
 router = APIRouter(prefix="/api/ai", tags=["AI助手"])
 
@@ -54,9 +55,10 @@ async def chat_with_ai(
     # 2. 构建当前请求消息列表（不含 system prompt）
     current_messages = history_messages + [{"role": "user", "content": chat_request.message}]
 
-    # 3. 调用 Agent 循环
+    # 3. 构建工具执行上下文并调用 Agent 循环
+    ctx = ToolContext(redis=redis, user_id=user.id)
     reply, related_jobs, updated_messages = await deepseek_service.chat(
-        redis=redis,
+        ctx=ctx,
         messages=current_messages,
     )
 
