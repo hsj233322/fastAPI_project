@@ -34,7 +34,10 @@ job-api/
 │
 ├── core/                    # 核心抽象层
 │   ├── __init__.py
-│   └── tool.py             # Tool 工具类（封装名称/描述/参数schema/执行函数，可输出 OpenAI Function Calling schema）
+│   ├── tool.py             # Tool 工具类（Pydantic 参数模型 + execute 统一执行入口，自动生成 OpenAI Function Calling schema）
+│   ├── tool_context.py     # ToolContext 工具执行上下文（统一注入 redis/db/user 等依赖）
+│   ├── tool_errors.py      # 工具分级异常（ToolParamError / ToolExecutionError 等）
+│   └── tool_registry.py    # ToolRegistry 工具注册表 + @tool 装饰器（工具自注册）
 │
 ├── models/                  # ORM 模型层（对应数据库表结构）
 │   ├── __init__.py         # ORM 基类 Base / TimestampMixin 时间戳混入
@@ -403,7 +406,7 @@ AI 助手采用 **Agent 循环 + 检索增强生成（RAG）** 架构，相比�
 | 路由入口     | [routers/ai\_assistant.py](file:///d:/Dev/Projects/job-api/routers/ai_assistant.py)                 | 接收请求、限流、串联会话与 Agent                                                  |
 | 会话管理     | [services/session\_manager.py](file:///d:/Dev/Projects/job-api/services/session_manager.py)         | 多轮对话历史读写，Redis 持久化，TTL 1h                                            |
 | Agent 循环 | [services/deepseek\_service.py](file:///d:/Dev/Projects/job-api/services/deepseek_service.py)       | 拼装 system prompt、循环调用大模型、解析 tool\_calls、执行工具、回喂结果                    |
-| 工具抽象     | [core/tool.py](file:///d:/Dev/Projects/job-api/core/tool.py)                                        | `Tool` 类：封装名称/描述/参数 schema/异步执行函数，可输出 OpenAI Function Calling schema |
+| 工具抽象     | [core/tool.py](file:///d:/Dev/Projects/job-api/core/tool.py)                                        | `Tool` 类：Pydantic 参数模型自动生成 OpenAI schema，`execute()` 统一校验+执行+异常分级；配套 `ToolContext` 依赖注入、`ToolRegistry` 注册表与 `@tool` 装饰器 |
 | 工具实现     | [services/tool\_functions.py](file:///d:/Dev/Projects/job-api/services/tool_functions.py)           | `search_jobs_by_semantic_func`：Embedding + RediSearch KNN 向量检索       |
 | 灌库脚本     | [scripts/embed\_jobs\_from\_csv.py](file:///d:/Dev/Projects/job-api/scripts/embed_jobs_from_csv.py) | 批量将 CSV 岗位向量化并写入 Redis 向量索引                                          |
 
