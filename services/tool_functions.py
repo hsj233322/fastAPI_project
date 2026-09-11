@@ -92,7 +92,7 @@ async def search_jobs_by_semantic_func(
         )
         query_vec_bytes = query_vec.tobytes()   # 将 numpy 数组转成字节序列
 
-        # 0. 地域过滤条件：用户指定地点时，用 province TAG 精确过滤 + KNN 混合查询
+        # 地域过滤条件：用户指定地点时，用 province TAG 精确过滤 + KNN 混合查询
         filter_expr = ""
         if location and location.strip():
             province = _normalize_province(location)
@@ -122,7 +122,7 @@ async def search_jobs_by_semantic_func(
         result_list = []
         for doc in result.docs:
             try:
-                score = float(doc.get("score", "999"))
+                score = float(getattr(doc, "score", "999"))
             except (ValueError, TypeError):
                 score = 999.0
 
@@ -130,7 +130,7 @@ async def search_jobs_by_semantic_func(
                 continue  # 分数太高，不相关，跳过
 
             try:
-                job_id = int(doc.get("mysql_id", "") or 0)
+                job_id = int(getattr(doc, "mysql_id", "") or 0)
             except (ValueError, TypeError):
                 continue
             if job_id <= 0:

@@ -27,8 +27,8 @@
 
                 <el-menu :default-active="activeMenu" mode="horizontal" class="nav-menu" @select="handleMenuSelect">
                     <el-menu-item index="home">岗位大厅</el-menu-item>
-                    <el-menu-item index="collects" v-if="isLoggedIn">我的收藏</el-menu-item>
-                    <el-menu-item index="history" v-if="isLoggedIn">浏览历史</el-menu-item>
+                    <el-menu-item index="collects">我的收藏</el-menu-item>
+                    <el-menu-item index="history">浏览历史</el-menu-item>
                 </el-menu>
 
                 <div class="header-right">
@@ -159,7 +159,7 @@
                         </div>
                     </el-card>
 
-                    <el-empty v-if="!collectLoading && collectList.length === 0" description="还没有收藏任何岗位" />
+                    <el-empty v-if="!collectLoading && collectList.length === 0" :description="isLoggedIn ? '还没有收藏任何岗位' : '登录后查看我的收藏'">
                 </div>
             </div>
 
@@ -191,7 +191,7 @@
                         </div>
                     </el-card>
 
-                    <el-empty v-if="!historyLoading && historyList.length === 0" description="还没有浏览记录" />
+                    <el-empty v-if="!historyLoading && historyList.length === 0" :description="isLoggedIn ? '还没有浏览记录' : '登录后查看浏览记录'">
                 </div>
             </div>
         </el-main>
@@ -331,7 +331,7 @@
         </el-footer>
 
         <!-- ============ AI助手浮动按钮 ============ -->
-        <div class="ai-float-btn" @click="openAiDrawer" v-show="isLoggedIn">
+        <div class="ai-float-btn" @click="openAiDrawer">
             <el-icon :size="24" color="#fff"><Service /></el-icon>
             <span class="ai-btn-text">AI助手</span>
         </div>

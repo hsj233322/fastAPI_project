@@ -275,7 +275,7 @@ const app = createApp({
         }
 
         async function loadCollects() {
-            if (!isLoggedIn.value) return;
+            if (!isLoggedIn.value) { collectList.value = []; collectedIds.value = new Set(); return; }
             collectLoading.value = true;
             try {
                 const res = await api.getCollects();
@@ -308,7 +308,7 @@ const app = createApp({
 
         // ============ 历史 ============
         async function loadHistory() {
-            if (!isLoggedIn.value) return;
+            if (!isLoggedIn.value) { historyList.value = []; return; }
             historyLoading.value = true;
             try {
                 const res = await api.getHistory();
@@ -493,6 +493,7 @@ const app = createApp({
         async function sendAiMessage() {
             const message = aiInput.value.trim();
             if (!message || aiLoading.value) return;
+            if (!isLoggedIn.value) { ElMessage.warning('请先登录'); showLoginDialog(); return; }
 
             aiMessages.value.push({ role: 'user', content: message, relatedJobs: [] });
             aiInput.value = '';

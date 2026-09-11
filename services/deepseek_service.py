@@ -26,7 +26,7 @@ class DeepSeekService:
     def __init__(self):
         self.api_key = os.getenv("DEEPSEEK_API_KEY")
         self.base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-        self.model = "deepseek-v4-flash"
+        self.model = "deepseek-flash"
         self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
         if not self.api_key:
