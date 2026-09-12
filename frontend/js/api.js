@@ -108,5 +108,80 @@ const api = {
     deleteHistory: (recordId) => api._request('DELETE', `/history/${recordId}`),
     clearHistory: () => api._request('DELETE', '/history/'),
 
-    chatAI: (data) => api._request('POST', '/ai/chat', data),
+    /**
+     * AI 对话（SSE 流式）
+     * @param {Object} data { message, session_id }
+     * @param {Object} handlers { onReasoning, onStatus, onDelta, onJobs, onDone, onError }
+     * 流建立前的错误（401/429/422）仍为普通 JSON；建立后的错误走 error 事件。
+     */
+    async chatAIStream(data, handlers = {}) {
+        const { onReasoning, onStatus, onDelta, onJobs, onDone, onError } = handlers;
+
+        let response;
+        try {
+            response = await fetch(this._baseURL + '/ai/chat/stream', {
+                method: 'POST',
+                headers: this._getHeaders(),
+                credentials: 'include',
+                body: JSON.stringify(data),
+            });
+        } catch (e) {
+            ElMessage.error('网络异常，请稍后重试');
+            throw e;
+        }
+
+        if (!response.ok || !response.body) {
+            let detail = '';
+            try {
+                const res = await response.json();
+                detail = (typeof res.detail === 'string' && res.detail) || res.message || '';
+            } catch (_) { /* 非 JSON 错误体 */ }
+            if (response.status === 401) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('userInfo');
+                ElMessage.warning('登录已过期，请重新登录');
+                window.dispatchEvent(new Event('auth-expired'));
+            } else {
+                ElMessage.error(detail || `请求失败(${response.status})`);
+            }
+            throw new Error(detail || 'stream request failed');
+        }
+
+        const dispatchFrame = (rawFrame) => {
+            // 一帧内可能有多行 data:，按 SSE 规范用换行拼接
+            const dataLines = rawFrame
+                .split('\n')
+                .filter((line) => line.startsWith('data:'))
+                .map((line) => line.slice(5).replace(/^ /, ''));
+            if (!dataLines.length) return;
+            const payload = JSON.parse(dataLines.join('\n'));
+            if (payload.type === 'reasoning') onReasoning?.(payload.content);
+            else if (payload.type === 'delta') onDelta?.(payload.content);
+            else if (payload.type === 'status') onStatus?.(payload.content);
+            else if (payload.type === 'jobs') onJobs?.(payload.content);
+            else if (payload.type === 'done') onDone?.(payload);
+            else if (payload.type === 'error') onError?.(payload.content);
+        };
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let sepIndex;
+            // SSE 以空行（\n\n）分隔事件
+            while ((sepIndex = buffer.indexOf('\n\n')) !== -1) {
+                const rawFrame = buffer.slice(0, sepIndex);
+                buffer = buffer.slice(sepIndex + 2);
+                try {
+                    dispatchFrame(rawFrame);
+                } catch (e) {
+                    console.error('SSE 帧解析失败', e, rawFrame);
+                }
+            }
+        }
+    },
 };

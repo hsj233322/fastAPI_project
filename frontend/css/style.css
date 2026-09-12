@@ -556,13 +556,89 @@ body {
     font-weight: 600;
 }
 
-.ai-loading {
+/* 流式输出：等待首字时的“思考中”提示 */
+.ai-typing {
     display: flex;
     align-items: center;
     gap: 8px;
     color: #909399;
     font-size: 13px;
-    padding: 8px 0;
+}
+
+/* 思考过程框 */
+.ai-thinking-box {
+    margin-bottom: 10px;
+    background: #f5f7fa;
+    border: 1px solid #ebeef5;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 13px;
+}
+
+.ai-thinking-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    color: #909399;
+    user-select: none;
+}
+
+.ai-thinking-header:hover {
+    background: #ebeef5;
+}
+
+.ai-thinking-arrow {
+    font-size: 11px;
+    line-height: 1;
+}
+
+.ai-thinking-title {
+    flex: 1;
+}
+
+/* 思考进行中的呼吸点 */
+.ai-thinking-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #409eff;
+    animation: ai-blink 0.9s steps(1) infinite;
+}
+
+.ai-thinking-body {
+    padding: 8px 12px;
+    border-top: 1px solid #ebeef5;
+    color: #606266;
+    max-height: 240px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.ai-thinking-body p {
+    margin: 0 0 6px;
+}
+
+.ai-thinking-body p:last-child {
+    margin-bottom: 0;
+}
+
+/* 流式输出：正文尾部的闪烁光标 */
+.ai-cursor {
+    display: inline-block;
+    width: 7px;
+    height: 15px;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: #409eff;
+    animation: ai-blink 0.9s steps(1) infinite;
+}
+
+@keyframes ai-blink {
+    0%, 50% { opacity: 1; }
+    50.01%, 100% { opacity: 0; }
 }
 
 .ai-chat-input {

@@ -40,19 +40,3 @@ class RelatedJob(BaseSchema):
     salary_max: Annotated[int | None, Field(description="最高薪资(k)")] = None
     province : Annotated[str, Field(description="省份")]
     education: Annotated[str | None, Field(description="学历要求")] = None
-
-class ChatResponse(BaseModel):
-    """
-    与 AI 助手对话的响应体。
-
-    Attributes:
-        reply (str): AI 助手回复的内容。
-        related_jobs (list[RelatedJob] | None): 相关岗位推荐列表（可选）。
-        session_id (str): 会话ID，用于多轮对话。
-    """
-    reply : Annotated[str, Field(description="AI助手回复内容")]
-    related_jobs: Annotated[
-        list[RelatedJob] | None, 
-        Field(description="相关岗位推荐")
-    ] = None
-    session_id: str # 返回给前端保存

@@ -140,6 +140,8 @@ const app = createApp({
         const aiInput = ref('');
         const aiLoading = ref(false);
         const aiMessagesRef = ref(null);
+        // AI 多轮会话 ID：首条消息后由后端 done 帧返回并回传
+        const aiSessionId = ref(null);
 
         // ============ 工具函数 ============
         function parseTags(tagsStr) {
@@ -496,6 +498,17 @@ const app = createApp({
             if (!isLoggedIn.value) { ElMessage.warning('请先登录'); showLoginDialog(); return; }
 
             aiMessages.value.push({ role: 'user', content: message, relatedJobs: [] });
+            // 先放一个空的助手气泡，等待流式内容逐字填充
+            const assistantMsg = {
+                role: 'assistant',
+                content: '',
+                reasoning: '',           // 思考过程（DeepSeek reasoning）
+                relatedJobs: [],
+                pending: true,
+                statusText: '正在思考中...',
+                thinkingCollapsed: false // 思考框是否收起：思考阶段展开，首个正文到达后收起
+            };
+            aiMessages.value.push(assistantMsg);
             aiInput.value = '';
             aiLoading.value = true;
 
@@ -505,32 +518,64 @@ const app = createApp({
                 }
             });
 
+            const scrollToBottom = () => nextTick(() => {
+                if (aiMessagesRef.value) {
+                    aiMessagesRef.value.scrollTop = aiMessagesRef.value.scrollHeight;
+                }
+            });
+
             try {
-                const rawHistory = aiMessages.value.slice(0, -1).map(msg => ({
-                    role: msg.role,
-                    content: msg.content
-                }));
-                const history = rawHistory.slice(-6);
-
-                const res = await api.chatAI({
-                    message: message,
-                    conversation_history: history
-                });
-
-                aiMessages.value.push({
-                    role: 'assistant',
-                    content: res.data.reply,
-                    relatedJobs: res.data.related_jobs || []
-                });
+                await api.chatAIStream(
+                    { message: message, session_id: aiSessionId.value },
+                    {
+                        onReasoning: (chunk) => {
+                            // 思考过程增量：追加到思考框，思考阶段保持展开
+                            assistantMsg.reasoning += chunk;
+                            assistantMsg.thinkingCollapsed = false;
+                            scrollToBottom();
+                        },
+                        onStatus: (text) => {
+                            assistantMsg.statusText = text;
+                            scrollToBottom();
+                        },
+                        onDelta: (chunk) => {
+                            // 首个正文到达：结束“思考中”占位，并收起思考框
+                            if (assistantMsg.pending) {
+                                assistantMsg.pending = false;
+                                assistantMsg.statusText = '';
+                                assistantMsg.thinkingCollapsed = true;
+                            }
+                            assistantMsg.content += chunk;
+                            scrollToBottom();
+                        },
+                        onJobs: (jobs) => {
+                            assistantMsg.relatedJobs = jobs || [];
+                            scrollToBottom();
+                        },
+                        onDone: (payload) => {
+                            assistantMsg.pending = false;
+                            assistantMsg.statusText = '';
+                            if (payload.session_id) aiSessionId.value = payload.session_id;
+                        },
+                        onError: (text) => {
+                            assistantMsg.pending = false;
+                            assistantMsg.statusText = '';
+                            assistantMsg.content = assistantMsg.content
+                                ? `${assistantMsg.content}\n\n${text}`
+                                : text;
+                        }
+                    }
+                );
             } catch (e) {
-                console.error('AI聊天失败', e);
+                console.error('AI流式聊天失败', e);
+                assistantMsg.pending = false;
+                assistantMsg.statusText = '';
+                if (!assistantMsg.content) {
+                    assistantMsg.content = '回复失败，请稍后再试。';
+                }
             } finally {
                 aiLoading.value = false;
-                nextTick(() => {
-                    if (aiMessagesRef.value) {
-                        aiMessagesRef.value.scrollTop = aiMessagesRef.value.scrollHeight;
-                    }
-                });
+                scrollToBottom();
             }
         }
 

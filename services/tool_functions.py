@@ -50,6 +50,16 @@ def _normalize_province(location: str) -> str | None:
     return name or None
 
 
+def _to_int_or_none(value: Any) -> int | None:
+    """把 RediSearch 返回的薪资字符串（如 '6'、'6.0'、''）转为 int，无法解析时返回 None。"""
+    if value in (None, ""):
+        return None
+    try:
+        return int(float(value))
+    except (ValueError, TypeError):
+        return None
+
+
 # ===== 工具参数模型（Pydantic，同时用于生成 OpenAI schema 和运行时校验） =====
 class SearchJobsBySemanticParams(BaseModel):
     query: str = Field(
@@ -113,7 +123,7 @@ async def search_jobs_by_semantic_func(
         search = ctx.redis.ft(INDEX_NAME)
         q = (
             Query(q_str)
-            .return_fields("mysql_id", "title", "company", "salary_min", "province", "education", "score")
+            .return_fields("mysql_id", "title", "company", "salary_min", "salary_max", "province", "education", "score")
             .dialect(2)
         )
         result = await search.search(q, query_params={"vec": query_vec_bytes})
@@ -142,7 +152,8 @@ async def search_jobs_by_semantic_func(
                 "company_name": getattr(doc, "company", ""),
                 "province": getattr(doc, "province", ""),
                 "education": getattr(doc, "education", ""),
-                "salary_min": getattr(doc, "salary_min", ""),
+                "salary_min": _to_int_or_none(getattr(doc, "salary_min", "")),
+                "salary_max": _to_int_or_none(getattr(doc, "salary_max", "")),
             })
 
         return result_list

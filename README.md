@@ -48,7 +48,7 @@ job-api/
 │
 ├── schemas/                 # Pydantic 模型层（请求/响应数据校验）
 │   ├── __init__.py         # 通用响应模型 ApiResponse、BaseSchema
-│   ├── ai_assistant.py     # AI 助手请求/响应模型（ChatRequest / ChatResponse / RelatedJob）
+│   ├── ai_assistant.py     # AI 助手请求模型与 SSE 事件（ChatRequest / RelatedJob）
 │   ├── collects.py         # CollectInternshipInfo 收藏列表项
 │   ├── historys.py         # HistoryItemResponse 浏览历史项
 │   ├── internship.py       # 分类 / 列表 / 详情 / 分页响应
@@ -291,7 +291,7 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 
 | 方法   | 路径             | 说明                        | 是否需要登录 |
 | ---- | -------------- | ------------------------- | :----: |
-| POST | `/api/ai/chat` | 与AI助手多轮对话（限流：每用户 60s/10次） |    是   |
+| POST | `/api/ai/chat/stream` | 与AI助手多轮对话（SSE 流式输出，限流：每用户 60s/10次） |    是   |
 
 **聊天请求参数：**
 
@@ -302,35 +302,31 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 }
 ```
 
-**聊天响应：**
+**聊天响应（SSE 事件流，`Content-Type: text/event-stream`，每帧以空行分隔）：**
 
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "reply": "根据你的需求，我为你推荐以下北京地区的开发岗位：...",
-    "related_jobs": [
-      {
-        "id": 1,
-        "title": "前端开发实习生",
-        "company_name": "XX科技有限公司",
-        "salary_min": 8,
-        "salary_max": 15,
-        "province": "北京",
-        "education": "本科"
-      }
-    ],
-    "session_id": "550e8400-e29b-41d4-a716-446655440000"
-  }
-}
+```text
+data: {"type": "status", "content": "正在为你搜索相关岗位，请稍候…"}
+data: {"type": "delta", "content": "根据你的需求，"}
+data: {"type": "delta", "content": "我为你推荐以下岗位：..."}
+data: {"type": "jobs", "content": [{"id": 1, "title": "前端开发实习生", ...}]}
+data: {"type": "done", "session_id": "550e8400-e29b-41d4-a716-446655440000"}
 ```
+
+事件类型说明：
+
+| 事件 | content | 说明 |
+| --- | --- | --- |
+| `status` | 提示文案 | 工具检索轮的状态提示（如“正在搜索岗位”） |
+| `delta` | 正文增量片段 | 前端按到达顺序拼接即可逐字渲染 |
+| `jobs` | `RelatedJob` 列表 | AI 调用检索工具后下发的岗位卡片 |
+| `error` | 错误文案 | 流建立后的异常（会话不会落库） |
+| `done` | 无（携带 `session_id`） | 结束帧 |
 
 > **说明**：
 >
-> - `session_id` 为可选字段。不传（`null`）时后端会生成新的会话 ID 并返回，前端需保存以便续接多轮对话；后续请求带上同一 `session_id` 即可维持上下文。
+> - `session_id` 为可选请求字段。不传（`null`）时后端会生成新的会话 ID，并在 `done` 帧返回，前端需保存以便续接多轮对话；后续请求带上同一 `session_id` 即可维持上下文。
 > - 会话历史存储在 Redis（key: `ai:session:{user_id}:{session_id}`，TTL 1 小时），不依赖前端回传历史消息，避免提示注入风险。
-> - `related_jobs` 可能为 `null`（AI 未调用检索工具时）或空列表（无匹配岗位）。
+> - 鉴权失败（401）、限流（429）等在流建立前以普通 HTTP 状态码返回；只有流建立后的错误才通过 `error` 事件下发。
 
 ### 认证方式
 
@@ -377,26 +373,26 @@ AI 助手采用 **Agent 循环 + 检索增强生成（RAG）** 架构，相比�
 用户消息 + session_id
         │
         ▼
-┌──────────────────────────┐
-│ SessionManager           │  从 Redis 加载多轮会话历史
-│ (ai:session:{uid}:{sid}) │
-└──────────────────────────┘
+┌─────────────────────────────┐
+│ SessionManager              │  从 Redis 加载多轮会话历史
+│ (ai:session:{uid}:{sid})    │
+└─────────────────────────────┘
         │ messages（不含 system prompt）
         ▼
-┌──────────────────────────┐
-│ DeepSeekService.chat     │  拼装 system prompt + 历史 + 当前消息
-│  ─ Agent 循环（≤5轮）    │
-│    ├─ 调用 DeepSeek       │  tool_choice="auto"，模型自行决定是否调工具
-│    ├─ 有 tool_calls?     │
-│    │   YES → 执行工具函数 │  search_jobs_by_semantic（RAG 检索）
-│    │        → 把工具结果  │
-│    │          喂回模型   │
-│    │        → 继续循环    │
-│    │   NO  → 返回最终回复  │
-└──────────────────────────┘
-        │ reply, related_jobs, updated_messages
+┌─────────────────────────────┐
+│ DeepSeekService.chat_stream │  拼装 system prompt + 历史 + 当前消息
+│  ─ Agent 循环（≤5轮）       │
+│    ├─ 调用 DeepSeek        │  tool_choice="auto"，模型自行决定是否调工具
+│    ├─ 有 tool_calls?      │
+│    │   YES → 执行工具函数  │  search_jobs_by_semantic（RAG 检索）
+│    │        → 把工具结果   │
+│    │          喂回模型    │
+│    │        → 继续循环     │
+│    │   NO  → 返回最终回复   │
+└─────────────────────────────┘
+        │ SSE 帧：delta / jobs / done
         ▼
-   保存会话 + 返回前端
+   落库会话（done 帧之前）+ 流式返回前端
 ```
 
 ### 关键组件

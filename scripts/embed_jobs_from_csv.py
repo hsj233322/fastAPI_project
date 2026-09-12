@@ -63,15 +63,36 @@ async def create_index(redis: Redis):
             raise e
 
             
+def parse_salary_range(salary_str) -> tuple[str, str]:
+    """
+    将 '6.0-8.0' 这样的月薪范围解析为 (下限, 上限) 字符串；
+    缺失或形如 '-' 时返回 ('', '')，统一以字符串写入 Redis 哈希。
+    """
+    if salary_str is None:
+        return "", ""
+    s = str(salary_str).strip()
+    if not s or s == "-":
+        return "", ""
+    parts = s.split("-")
+    if len(parts) == 2:
+        try:
+            return str(int(float(parts[0]))), str(int(float(parts[1])))
+        except ValueError:
+            return "", ""
+    return "", ""
+
+
 def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     对原始 CSV 数据进行清洗和预处理
     1. 填充所有 NaN 为空字符串
-    2. 将薪资下限转为字符串（避免存 Redis 报错）
+    2. 从“月薪范围(k)”解析出薪资下限/上限（转为字符串，避免存 Redis 报错）
     """
     df = df.fillna('')
-    df['薪资下限'] = df['薪资下限'].astype(str)
-    
+    salaries = df['月薪范围(k)'].apply(parse_salary_range)
+    df['薪资下限'] = salaries.apply(lambda pair: pair[0])
+    df['薪资上限'] = salaries.apply(lambda pair: pair[1])
+
     return df
 
 async def main():
@@ -127,6 +148,7 @@ async def main():
                         "title": row.岗位名称,
                         "company": row.单位名称,
                         "salary_min": row.薪资下限,
+                        "salary_max": row.薪资上限,
                         "embedding": emb_bytes,
                     }
                 )
