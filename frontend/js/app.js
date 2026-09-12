@@ -499,16 +499,18 @@ const app = createApp({
 
             aiMessages.value.push({ role: 'user', content: message, relatedJobs: [] });
             // 先放一个空的助手气泡，等待流式内容逐字填充
-            const assistantMsg = {
+            aiMessages.value.push({
                 role: 'assistant',
                 content: '',
-                reasoning: '',           // 思考过程（DeepSeek reasoning）
+                reasoning: '',
                 relatedJobs: [],
                 pending: true,
                 statusText: '正在思考中...',
-                thinkingCollapsed: false // 思考框是否收起：思考阶段展开，首个正文到达后收起
-            };
-            aiMessages.value.push(assistantMsg);
+                thinkingCollapsed: false
+            });
+            // 通过数组索引拿响应式代理，直接修改属性才能触发 Vue 更新
+            const assistantIdx = aiMessages.value.length - 1;
+            const getAssistant = () => aiMessages.value[assistantIdx];
             aiInput.value = '';
             aiLoading.value = true;
 
@@ -530,48 +532,52 @@ const app = createApp({
                     {
                         onReasoning: (chunk) => {
                             // 思考过程增量：追加到思考框，思考阶段保持展开
-                            assistantMsg.reasoning += chunk;
-                            assistantMsg.thinkingCollapsed = false;
+                            const m = getAssistant();
+                            m.reasoning += chunk;
+                            m.thinkingCollapsed = false;
                             scrollToBottom();
                         },
                         onStatus: (text) => {
-                            assistantMsg.statusText = text;
+                            getAssistant().statusText = text;
                             scrollToBottom();
                         },
                         onDelta: (chunk) => {
-                            // 首个正文到达：结束“思考中”占位，并收起思考框
-                            if (assistantMsg.pending) {
-                                assistantMsg.pending = false;
-                                assistantMsg.statusText = '';
-                                assistantMsg.thinkingCollapsed = true;
+                            const m = getAssistant();
+                            if (m.pending) {
+                                m.pending = false;
+                                m.statusText = '';
+                                m.thinkingCollapsed = true;
                             }
-                            assistantMsg.content += chunk;
+                            m.content += chunk;
                             scrollToBottom();
                         },
                         onJobs: (jobs) => {
-                            assistantMsg.relatedJobs = jobs || [];
+                            getAssistant().relatedJobs = jobs || [];
                             scrollToBottom();
                         },
                         onDone: (payload) => {
-                            assistantMsg.pending = false;
-                            assistantMsg.statusText = '';
+                            const m = getAssistant();
+                            m.pending = false;
+                            m.statusText = '';
                             if (payload.session_id) aiSessionId.value = payload.session_id;
                         },
                         onError: (text) => {
-                            assistantMsg.pending = false;
-                            assistantMsg.statusText = '';
-                            assistantMsg.content = assistantMsg.content
-                                ? `${assistantMsg.content}\n\n${text}`
+                            const m = getAssistant();
+                            m.pending = false;
+                            m.statusText = '';
+                            m.content = m.content
+                                ? `${m.content}\n\n${text}`
                                 : text;
                         }
                     }
                 );
             } catch (e) {
                 console.error('AI流式聊天失败', e);
-                assistantMsg.pending = false;
-                assistantMsg.statusText = '';
-                if (!assistantMsg.content) {
-                    assistantMsg.content = '回复失败，请稍后再试。';
+                const m = getAssistant();
+                m.pending = false;
+                m.statusText = '';
+                if (!m.content) {
+                    m.content = '回复失败，请稍后再试。';
                 }
             } finally {
                 aiLoading.value = false;
