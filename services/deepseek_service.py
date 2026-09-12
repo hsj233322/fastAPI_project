@@ -107,7 +107,6 @@ class DeepSeekService:
         """
         执行一批工具调用，返回 (tool 消息列表, 相关岗位)。
         tool_calls 中每项为已拼装完整的 {id, name, arguments}。
-        相关岗位为工具函数直接返回的 dict 列表（可 JSON 序列化）。
         供流式 chat_stream 的 Agent 循环调用。
         """
         tool_messages: list[dict[str, Any]] = []

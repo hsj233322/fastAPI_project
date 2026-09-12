@@ -25,7 +25,7 @@ deepseek_service = DeepSeekService()
 
 
 def _sse(event: dict[str, Any]) -> str:
-    """将事件字典编码为一帧 SSE（data: 单行 JSON + 空行分隔）。"""
+    """把 Python 的 dict 变成 SSE 协议要求的字符串格式"""
     return f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
 
@@ -83,7 +83,6 @@ async def chat_with_ai_stream(
             ):
                 if event.get("type") == "error":
                     had_error = True
-                # jobs 事件本身就是可 JSON 序列化的 dict 列表（工具层返回），直接透传
                 yield _sse(event)
         except Exception:
             logger.exception("SSE 流式响应中断")
