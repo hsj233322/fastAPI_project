@@ -91,15 +91,17 @@ app.include_router(collects.router)
 app.include_router(historys.router)
 app.include_router(ai_assistant.router)
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 # 挂载前端静态资源（放在路由之后，避免拦截 /api 请求）
 # 通过访问 http://localhost:8000/ 即可打开前端页面
 _frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
 if os.path.isdir(_frontend_dir):
     app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
 
-@app.get("/health")
-async def health_check():
-    return {"status": "ok"}
+
 
 """--------异常处理--------"""
 _ = logger.add(

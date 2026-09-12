@@ -178,7 +178,7 @@ class DeepSeekService:
                     delta = chunk.choices[0].delta
 
                     # 先判断是否有思考内容
-                    if delta.reasoning_content:
+                    if getattr(delta, 'reasoning_content', None):
                         yield {"type": "reasoning", "content": delta.reasoning_content}
 
                     # 再判断正文内容
