@@ -83,7 +83,7 @@ async def main() -> None:
         print("抽查：")
         checked = 0
         async for key in redis.scan_iter(match="job:*", count=200):
-            fields = await redis.hget(key, "salary_min", "salary_max", "title")
+            fields = await redis.hmget(key, "salary_min", "salary_max", "title")
             print(f"  {key}: salary_min={fields[0]!r} salary_max={fields[1]!r} title={fields[2]!r}")
             checked += 1
             if checked >= 3:
