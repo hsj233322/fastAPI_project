@@ -9,7 +9,7 @@
     <!-- Element Plus 图标 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus@2.4.4/dist/index.css">
     <!-- 自定义样式 -->
-    <link rel="stylesheet" href="/css/style.css?v=5">
+    <link rel="stylesheet" href="/css/style.css?v=6">
 </head>
 
 <body>
@@ -337,7 +337,8 @@
         </div>
 
         <!-- ============ AI助手聊天面板 ============ -->
-        <el-drawer v-model="aiDrawerVisible" direction="rtl" :size="420" title="实习帮助手">
+        <el-dialog v-model="aiDrawerVisible" title="实习帮助手" width="640px" top="8vh"
+            destroy-on-close align-center>
             <div class="ai-chat-container">
                 <div class="ai-chat-messages" ref="aiMessagesRef">
                     <div v-for="(msg, idx) in aiMessages" :key="idx"
@@ -401,7 +402,7 @@
                     </el-input>
                 </div>
             </div>
-        </el-drawer>
+        </el-dialog>
     </div>
 
     <!-- ============ 依赖：Vue 3 + Element Plus + Axios（全部 CDN） ============ -->
